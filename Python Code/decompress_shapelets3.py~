@@ -1,0 +1,149 @@
+#! /usr/bin/env python
+# code to decompress shapelet coefficients into a HealPIX image
+# ang_res in degrees, ang_extent in degrees, source name undecided
+
+# def decompress_shapelets( ang_res, ang_extent, source_name )
+import math as m
+import numpy as np
+import matplotlib.pyplot as plt
+import time
+# import healpy as hp
+
+ang_res = 0.008				# degrees
+ang_extent = 500*ang_res			# degrees
+pxl_width = m.radians(ang_res)
+extent = m.radians(ang_extent)
+
+# import source information
+# parameters = [ra, dec, pa, major, minor]
+# parameters = np.loadtxt('~/Dropbox/Public/Shapelet_models/' + source_name + '_parameters.txt')
+# coeffs = [n1, n2, fn1n2]
+# coeffs = np.loadtxt('~/Dropbox/Public/Shapelet_models/' + source_name + '_coeffs.txt')
+t1 = time.clock()
+parameters = [3.360978, -37.150969, -77.99222, 8.027761, 4.820640]
+# coeffs = np.loadtxt('/home/jthomps/Dropbox/Documents/Shapelets/Image_shapes/Text/FornaxA_180MHz_50coeffs.txt')	
+t2 = time.clock()
+
+# deals with current parameter format
+# 3C33
+coeffs = np.loadtxt('/home/jthomps/Dropbox/Documents/Shapelets/Models/3C33_model.txt')
+shapes = np.loadtxt('/home/jthomps/Dropbox/Documents/Shapelets/Models/3C33_paras.txt')
+parameters[0]=1.+8./60+8./3600
+parameters[1]=13.+20./60+14./3600
+
+#3C353
+#coeffs = np.loadtxt('/home/jthomps/Dropbox/Documents/Shapelets/Models/3C353_model.txt')
+#shapes = np.loadtxt('/home/jthomps/Dropbox/Documents/Shapelets/Models/3C353_paras.txt')
+#parameters[0]=1.+8./60+8./3600
+#parameters[1]=13.+20./60+14./3600
+
+#3C444
+#coeffs = np.loadtxt('/home/jthomps/Dropbox/Documents/Shapelets/Models/PKS2153-69_model.txt')
+#shapes = np.loadtxt('/home/jthomps/Dropbox/Documents/Shapelets/Models/PKS2153-69_paras.txt')
+
+pa=shapes[2]
+b1=shapes[0]
+b2=shapes[1]
+
+# setting the scene
+xpxls = int(m.floor(extent/pxl_width))
+num_coeffs = coeffs.shape[0]
+n_max = int(max(max(coeffs[:,0]), max(coeffs[:,1])))
+# n_max = 0
+ra = m.radians(parameters[0]*15)
+dec = m.radians(parameters[1])
+pa = m.radians(parameters[2]+180)
+b1 = m.radians(parameters[3]/60)
+b2 = m.radians(parameters[4]/60)
+	
+# create coordinate axis
+xstart = xpxls/2*pxl_width
+ystart = xstart
+tot_length = xpxls*xpxls
+ra_axis = np.zeros((xpxls))
+dec_axis = np.zeros((xpxls))
+sky_coords = np.zeros((tot_length,2))
+coords = np.zeros((tot_length,2))
+xrot = np.zeros((tot_length))
+yrot = np.zeros((tot_length))
+model = np.zeros((tot_length))
+V = np.zeros((tot_length))
+gauss = np.zeros((tot_length))
+Mpiece = np.zeros((tot_length))
+final_image = np.zeros((xpxls, xpxls))
+basis_out = np.zeros((xpxls, xpxls))
+
+xindex=xpxls-1
+
+k=0;
+for i in range(0,xindex):
+	ra_axis[i] = m.degrees(ra - xstart + i*pxl_width)/15
+	dec_axis[i] = m.degrees(dec - ystart + i*pxl_width)
+	for j in range(0,xindex):
+		coords[k,0] = i*pxl_width - xstart
+		coords[k,1] = xstart - j*pxl_width
+		sky_coords[k,0] = ra_axis[i]
+		sky_coords[k,1] = m.degrees(dec - ystart + j*pxl_width)
+		k=k+1;
+
+t3 = time.clock()		
+# deal with coordinate rotation
+transform = [[m.cos(pa), -m.sin(pa)], [m.sin(pa), m.cos(pa)]]
+temp_coords = np.dot(transform, coords.transpose())
+rot_coords = temp_coords.transpose()
+xrot = rot_coords[:,0]/b1
+yrot = rot_coords[:,1]/b2
+
+# independent script?
+# generates the basis functions
+hermites = np.loadtxt('/home/jthomps/Dropbox/Documents/Shapelets/Common/hermite_coeffs.txt')	
+
+for i in range(0, num_coeffs-1):
+	n1 = coeffs[i,0]
+	n2 = coeffs[i,1]
+	f_hat = coeffs[i,2]
+	norm = m.sqrt(m.pow(2,n1+n2)*m.pi*b1*b2*m.factorial(n1)*m.factorial(n2))
+        gauss = np.exp(-0.5*(np.array(xrot)**2+np.array(yrot)**2))
+	k=0
+        h1=0.
+        h2=0.
+        while (k <= n1):		
+        	h1 = h1+hermites[n1, k]*(np.array(xrot))**(n1-k)
+        	k=k+1
+        k=0
+	while (k <= n2):		
+        	h2 = h2+hermites[n2, k]*(np.array(yrot))**(n2-k)
+        	k=k+1
+	V = f_hat*h1*h2*gauss/norm
+	model =model+V
+
+t4 = time.clock()
+k=0
+for i in range(0, xpxls-1):
+	for j in range(0, xpxls-1):
+		k=k+1
+		final_image[i,j] = model[k]
+
+t5 = time.clock()
+# k=0
+#for i in range(0, xpxls-1):
+# 	for j in range(0, xpxls-1):
+#		basis_out[i,j] = all_basis[k,1,1]
+#		k=k+1
+
+# how to plot somewhere contained in these lines 
+# plt.plot(coords[:,1])
+# plt.show()
+#print round(t2-t1, 3)
+#print round(t3-t2, 3)
+#print round(t4-t3, 3)
+#print round(t5-t4, 3)
+#print round(t6-t5, 3)
+
+plt.imshow(final_image)
+plt.show()
+
+# NSIDE = xside
+# m = np.arange(hp.nside2npix(NSIDE))
+
+

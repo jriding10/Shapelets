@@ -1,0 +1,43 @@
+
+
+#######################################################################
+## Maths time...
+	
+beta1 = m.radians(shapes[2]/60)
+beta2 = m.radians(shapes[3]/60)
+
+if generate_new_moments == 1:
+	moments = deconstruct(im_coords,coldata,beta1,beta2,n_max)
+
+col_mod = reconstruct(im_coords,moments,beta1,beta2)
+
+performance = simple_stats(coldata,col_mod)
+
+#######################################################################
+## Visualisations
+	
+data_size = im_coords.shape
+nside = sqrt(data_size[0])
+
+k=-1
+for i in range(0, nside-1):
+	for j in range(0, nside-1):
+		k=k+1
+		final_image[i,j] = model[k]
+		basis_out[i,j] = all_basis[k,0,0]
+
+if show_plots ==1:
+	plt.imshow(final_image)
+	plt.show()
+
+#######################################################################
+## Code outputs
+
+# save file text
+if save_moments == 1:
+	np.savetext(savefile, moments, fmt=['%i', '%i', '%.8e'])
+if save_shapes == 1:	
+	np.savetext(savefile2, shapes, fmt='%.8e'
+
+if generate_fits == 1:
+	make_fitsfile(info, model)

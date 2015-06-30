@@ -1,0 +1,252 @@
+#! /usr/bin/env python
+# Data_manipulation.py
+# Contains a number of functions used to prepare the data for use by
+# the main maths routinues. 
+# def userIO		:inputs user choices
+# def import_fits	:reads fits data and header
+# def polish_data	:centers source, creates coordinates
+# def cov_fit		:determines PA and flux center
+# def make_fitsfile :creates a fits file containing the model image
+
+import io
+import math as m
+import numpy as np
+import astropy
+import pyfits
+
+#######################################################################
+## A tonne of user inputs, beginning with a simple decompression to a complete remodelling.
+
+def userIO():
+	choice = 0
+	choice2 = 'n'
+	choice3 = 'n'
+	
+	fits_filename = 'NA'
+	moms = 'NA'
+	paras = 'NA'
+	obj_size = 1.0
+	
+	while True:
+		choice = int(raw_input('\nDo you want to view a model (0) or use the code - requires a fits file (1)')) 
+		break
+
+	# The 'I just want to view the model' option:
+	if choice == 0:
+		while True:
+			paras = raw_input('\nPlease enter parameter file (path): ')
+			moms = raw_input('\nPlease enter coefficient file (path): ')
+			rough_size = raw_input('\nHow large is your object (default = 1 arcmin)')
+			if rough_size != '':
+				obj_size = float(rough_size)
+			fits_filename = 'NA'
+			break
+
+	# The 'I want to compare/compute with a fits file'
+	if choice == 1:
+		fits_filename = raw_input('\nPlease enter the fits file name (path):')
+		while True:
+			rough_size = raw_input('\nHow large is your object (default = 1 arcmin)')
+			if rough_size != '':
+				obj_size = float(rough_size)
+			choice2 = raw_input('\nDo you want to use an existing parameter file (y/n)?')
+			if choice2 == 'y':	
+				paras = raw_input('\nPlease enter parameter file (path): ')
+				choice3 = raw_input('\nDo you want to use an existing coefficient file (y/n)?')
+				if choice3 == 'y':
+					moms = raw_input('\nPlease enter coefficient file (path): ') 
+				if choice3 == 'n':
+					moms = 'NA'
+			if choice2 == 'n':
+				paras = 'NA'
+			break
+
+	return (fits_filename, paras, moms, obj_size)
+
+##########################################################################
+## Get the relevent information from a fits file, data and header
+
+def import_fits(filename):
+	obj_info = np.zeros((2,4))
+	fits_info = pyfits.getheader(filename)
+	alldata = pyfits.getdata(filename)
+
+	# relevent stuff from the header
+	ra = np.radians(fits_info['CRVAL1'])
+	dec = np.radians(fits_info['CRVAL2'])
+	ra_res = np.radians(fits_info['CDELT1'])
+	dec_res = np.radians(fits_info['CDELT2'])
+	ra_pxl = fits_info['CRPIX1']
+	dec_pxl = fits_info['CRPIX2']
+
+	num_axis = fits_info['NAXIS']
+	ra_side = fits_info['NAXIS1']
+	dec_side = fits_info['NAXIS2']
+
+	if num_axis == 3:
+		data = alldata[0,:,:]
+	if num_axis == 4:
+		data = alldata[0,0,:,:]
+
+	# packaging row 0 = ra stuff, row 1 = dec stuff
+	obj_info[0,:] = [ra, ra_res, ra_pxl, ra_side]
+	obj_info[1,:] = [dec, dec_res, dec_pxl, dec_side]
+	
+	return (obj_info, data)
+
+#######################################################################
+## Create usable data and coordinates
+
+def polish_data(sinfo, in_data, sizing):
+
+	fudge = 100.
+	# assumes square dataset
+	res = max(abs(sinfo[0,1]), abs(sinfo[1,1]))
+	ang_res = np.radians(res)
+	side = max(sinfo[0,3], sinfo[1,3])-1
+	obj_size_pxls = int(round(sizing/ang_res)*fudge)
+
+	if obj_size_pxls > side:
+	    nside = side
+	else:
+	    nside = obj_size_pxls
+	
+	midpix_ra = sinfo[0,2]
+	midpix_dec = sinfo[1,2]
+
+	# ensuring we stay within the bounds of the array
+	if (sinfo[0,2]+nside/2) > side:
+	    nside = 2*(side-midpix_ra)
+	if (sinfo[0,2]-nside/2) < 0:
+		nside = 2*midpix_ra
+
+	if (sinfo[1,2]+nside/2) > side:
+		nside = 2*(side-midpix_dec)
+	if (sinfo[1,2]-nside/2) < 0:
+		nside = 2*midpix_dec
+	
+	# Initialise arrays
+	midpix = nside/2
+	num_pxl = nside*nside
+
+	coords = np.zeros((num_pxl,2))
+	rowaxis = np.zeros((nside,1))
+	colaxis = np.zeros((nside,1))
+	ra = np.zeros((nside,1))
+	dec = np.zeros((nside,1))
+	sky_coords = np.zeros((nside,2))
+	out_data = np.zeros((nside, nside))
+	col_data = np.zeros((num_pxl,1))
+
+	silly = int(nside-1)
+	for i in range(0,silly):
+		rowaxis[i] = (i-midpix)*ang_res
+
+	colaxis = rowaxis.copy()
+
+	off1 = sinfo[1,2]-midpix
+	off0 = sinfo[0,2]-midpix
+
+	k=-1
+	for i in range (0,silly):
+		for j in range(0,silly):     
+			k=k+1
+	        coords[k,0]=rowaxis[i]
+        	coords[k,1]=colaxis[j]
+        	out_data[i,j] = in_data[i+off1, j+off0]
+	        col_data[k,0] = out_data[i,j]  
+
+	dec = np.degrees(rowaxis) + sinfo[1,0]*np.ones((nside,1))
+	ra = -1*np.degrees(colaxis) - sinfo[0,0]*np.ones((nside,1))
+	sky_coords = np.concatenate((ra, dec), axis=1)
+
+	return coords, sky_coords, out_data, col_data
+	
+
+#######################################################################
+## Does a covariance fit of the data to determine flux center
+
+def cov_fit(coords, data):
+	S = sum(sum(data))
+	data_size = data.shape
+	nside = data_size[0]
+	npix = nside*nside
+	offsets = (0.0,0.0)
+	addmat = np.zeros((npix,2))
+
+	x = 0
+	y = 0
+	Sxx = 0
+	Sxy = 0
+	Syy = 0
+
+	k=-1
+	for i in range(0,nside-1):
+		for j in range(0,nside-1):
+			k=k+1
+			x = x+data[i,j]*coords[k,0]
+			y = y+data[i,j]*coords[k,1]
+
+	x0 = (x/S)
+	y0 = (y/S)
+
+	offsets = (x0, y0)
+
+	coords[:,0]-= x0
+	coords[:,1]-= y0
+
+	k=-1
+	for i in range(0,nside-1):
+		for j in range(0,nside-1):
+			k=k+1
+			Sxx = Sxx + data[i,j]*coords[k,0]*coords[k,0]
+			Sxy = Sxy + data[i,j]*coords[k,0]*coords[k,1]
+			Syy = Syy + data[i,j]*coords[k,1]*coords[k,1]
+
+	a11 = Sxx/S
+	a12 = Sxy/S
+	a22 = Syy/S
+
+	C = np.array([[a11, a12], [a12, a22]])
+
+	(eigenval, eigenvect) = np.linalg.eig(C)
+
+	minor = np.sqrt(eigenval[0])
+	major = np.sqrt(eigenval[1])
+
+	PA = m.atan2(eigenvect[1,1],eigenvect[0,1])
+
+	return major, minor, PA, offsets
+
+#######################################################################
+## Makes a fits file of the model
+
+def make_fitsfile(sky_coords, model):
+
+	data_size = model.shape
+	nside = data_size[0]
+	mid = round(nside/2)
+	ra = ra_axis[mid]
+	dec = dec_axis[mid]
+	ang_res = abs(sky_coords[0,1]-sky_coords[0,0])
+	ang_res = m.degrees(ang_res)	
+
+	hdu = fits.PrimaryHDU(final_image)
+	hdulist = fits.HDUList([hdu])
+
+	hdu.header['BSCALE'] = float(1.0)
+	hdu.header['BTYPE'] = 'Intensity'
+	hdu.header['BUNIT'] = 'JY/PIXEL'
+	hdu.header['CRPIX1'] = mid
+	hdu.header['CDELT1'] = -1*ang_res
+	hdu.header['CRVAL1'] = ra[0]
+	hdu.header['CTYPE1'] = 'RA---SIN'
+	hdu.header['CUNIT1'] = 'deg'
+	hdu.header['CRPIX2'] = mid
+	hdu.header['CDELT2'] = ang_res
+	hdu.header['CRVAL2'] = dec[0]
+	hdu.header['CTYPE2'] = 'DEC--SIN'
+	hdu.header['CUNIT2'] = 'deg'
+	hdu.writeto('Shapelet_output.fits')
+
+	return 
