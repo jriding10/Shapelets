@@ -11,18 +11,18 @@ from Data_manipulation import *
 #def Shapelets()
 # default values
 
-filename = '../Fits_files/3C33.fits'
-paras = 'ForA_paras.txt'
-moms = 'VirA_351coeffs.txt'
+filename = '../Fits_files/FnxA.fits'
+paras = '../Models/ForA_paras.txt'
+moms = '../Models/VirA_351coeffs.txt'
 generate_new_parameters = 1
 generate_new_moments = 1
 generate_fits = 0
 show_plots = 1
 
 save_moments = 1
-new_moms = '../Models/3C33_351coeffs.txt'
+new_moms = '../Models/FnxA_351coeffs.txt'
 save_paras = 1
-new_paras = '../Models/3C33_paras.txt'
+new_paras = '../Models/FnxA_paras.txt'
 
 create_plots = 1
 minimise_coeffs = 0
@@ -31,7 +31,7 @@ minimise_coeffs = 0
 ## Code initailisations
 n_max = 25;                                # maximum shapelet order
 coeffs = 0.5*(n_max+1)*(n_max+2);       # number of moments
-obj_size = 8.0
+obj_size = 12.0
 
 pxl_obj = 25                            # pixels across source
 tot_pxl = 64                            # pixels across image
@@ -85,7 +85,7 @@ new_info = source_info.copy()
   
 if generate_new_parameters == 1:  
     (beta1, beta2, PA, offsets) = cov_fit(coords0, dataset0)
-    PA = 0.
+    PA = -PA
     shapes[0] = np.degrees(source_info[0,0] + offsets[1])
     shapes[1] = np.degrees(source_info[1,0] + offsets[0])
     shapes[4] = np.degrees(PA)
@@ -136,15 +136,15 @@ for i in range(0, nside):
         final_image[i,j] = col_mod[k]
 
 if show_plots ==1:
-        plt.figure(0)
+        figure(0)
         plt_max = np.max(dataset.flatten())
         plt_min = np.min(dataset.flatten())
         plt.imshow(dataset,vmin=plt_min,vmax=plt_max)
         plt.colorbar()
-        plt.figure(1)
+        figure(1)
         plt.imshow(final_image,vmin=plt_min,vmax=plt_max)
         plt.colorbar()
-        plt.figure(2)
+        figure(2)
         plt.imshow(residuals,vmin=plt_min,vmax=plt_max)
         plt.colorbar()        
         
