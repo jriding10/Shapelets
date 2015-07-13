@@ -1,0 +1,17 @@
+There are four directories;
+
+Fits_files: contains the fits file used as a model base for the current model. If you are making your own, please upload the fits here so we can keep track of where the models are coming from.
+
+Models: contains the text file models. There are two files per source, labelled source_numcoeffs.txt and source_paras.txt. num is usually 351 (the number the code usually computes) but will later vary based upon how many are actually needed instead of overfitting. Format is n1 n2 coeff. The paras file contains five numbers, ra(degs) dec(degs) axis1(arcmin) axis2(arcmin) PA(degs). axis1/axis2 = major/minor and all values are converted to radians within the code itself. Ideally only the current model will reside here.
+
+Jackpy: some of Jack's python code.
+
+Code: where the magic happens. There are three pieces of active code and a text file to make shapelets happen. 
+	Shapelets.py - the main file and the only one you need to run. At the top of the code is a list of options to be set by the user (a more user friendly approach will be implemented later). 0 = false, 1 = true. Your choices are:
+generate_new_parameters - if false, please provide filename to paras variable. If true, do you want to save the new outputs (save_paras) and provide a filename to new_paras.
+generate_new_moments - if false, please provide filename to moments/coeffs variable moms. If true, do you want to save the new outputs (save_moments) and provide a filename to new_moms.
+create_plots - if true, three figures are produced showing data, model and residuals with the same colourbar. This is HIGHLY reccomended at this stage to evaluate the performance.
+minimise_coeffs - to be coded later.
+The main code also creates two numbers, the peak signal-to-noise in dB (PSNR should be large) of the fit and the normalised mean squared error (NMSE should be small). 
+	Data_manipulations.py - contains the code that organises the data for a shapelet fit (resizing if necessary, finding the flux-weighted center, evaluating fit etc).
+	Shape_functions.py - performs the fitting and/or extracting models from coefficients.
