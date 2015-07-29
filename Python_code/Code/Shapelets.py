@@ -9,51 +9,41 @@ from Shape_functions import *
 from Data_manipulation import *
 
 #def Shapelets()
-# default values
-
-filename = '../Fits_files/FnxA.fits'
+# Inputs
+from_fits = 1                           # use a fits file
+generate_new_parameters = 1             # calc paras
+generate_new_moments = 1                # calc coeffs
+filename = '../Fits_files/VirA.fits'
 paras = '../Models/ForA_paras.txt'
 moms = '../Models/VirA_351coeffs.txt'
-generate_new_parameters = 1
-generate_new_moments = 1
-generate_fits = 0
-show_plots = 1
 
-save_moments = 1
-new_moms = '../Models/FnxA_351coeffs.txt'
-save_paras = 1
-new_paras = '../Models/FnxA_paras.txt'
-
+# Outputs
 create_plots = 1
-minimise_coeffs = 0
+save_moments = 0
+save_paras = 0
+create_fits = 0
+dir_name = '../Models/'
+source_name = 'VirA'
+filetype = 'txt'
 
 ##############################################################################
 ## Code initailisations
-n_max = 25;                                # maximum shapelet order
-coeffs = 0.5*(n_max+1)*(n_max+2);       # number of moments
+n_max = 25                                # maximum shapelet order
+coeffs = 0.5*(n_max+1)*(n_max+2)          # number of moments
+coeffs_to_inc = 351                       # manually dictate how many
 obj_size = 12.0
 
-pxl_obj = 25                            # pixels across source
-tot_pxl = 64                            # pixels across image
 n_approx = 5                            # for beta searcher
 
-#######################################################################
-## I/O and determining what parts of the code are going to run
-
 shapes = np.zeros((5))
-(source_info, data) = import_fits(filename)
 
-#(filename, paras, moms, obj_size) = userIO()
+if from_fits == 1:
+    (source_info, data) = import_fits(filename)
 
-if filename != 'NA':
-    (info, data) = import_fits(filename)
-
-#if paras != 'NA':
-#    shapes = np.loadtxt(paras)
-#    generate_new_parameters = 0
-#    if moms != 'NA':
-#        moments = np.loadtxt(moms)
-#        generate_new_moments = 0
+if generate_new_parameters == 0:
+    shapes = np.loadtxt(paras)
+if generate_new_moments == 0: 
+    moments = np.loadtxt(moms)
 
 
 ext_source = np.radians(obj_size/60)
@@ -63,7 +53,7 @@ ang_res = max(abs(source_info[0,1]), abs(source_info[1,1]))
 ## Setting up the variables
     
 # default sizes for simple model viewing
-if filename == 'NA':
+if from_fits == 0:
     source_info[0,0] = shapes[0]
     source_info[1,0] = shapes[1]
     source_info[0,1] = ext_source/pxl_obj
@@ -86,8 +76,8 @@ new_info = source_info.copy()
 if generate_new_parameters == 1:  
     (beta1, beta2, PA, offsets) = cov_fit(coords0, dataset0)
     PA = -PA
-    shapes[0] = np.degrees(source_info[0,0] + offsets[1])
-    shapes[1] = np.degrees(source_info[1,0] + offsets[0])
+    shapes[0] = np.degrees(source_info[0,0])
+    shapes[1] = np.degrees(source_info[1,0])
     shapes[4] = np.degrees(PA)
     new_info[0,0] = np.radians(shapes[0])
     new_info[1,0] = np.radians(shapes[1])
@@ -135,23 +125,29 @@ for i in range(0, nside):
         residuals[i,j] = colresid[k]
         final_image[i,j] = col_mod[k]
 
-if show_plots ==1:
+if create_plots ==1:
         figure(0)
         plt_max = np.max(dataset.flatten())
         plt_min = np.min(dataset.flatten())
-        plt.imshow(dataset,vmin=plt_min,vmax=plt_max)
+        plt.contour(dataset,vmin=plt_min,vmax=plt_max)
         plt.colorbar()
         figure(1)
-        plt.imshow(final_image,vmin=plt_min,vmax=plt_max)
+        plt.contour(final_image,vmin=plt_min,vmax=plt_max)
         plt.colorbar()
         figure(2)
-        plt.imshow(residuals,vmin=plt_min,vmax=plt_max)
+        plt.contour(residuals,vmin=plt_min,vmax=plt_max)
         plt.colorbar()        
         
+new_moms = ''
+new_paras = ''
+start = ''.join([dir_name,source_name])
 if save_moments == 1:
-	np.savetxt(new_moms, moments)
-if save_paras == 1:	
-	np.savetxt(new_paras, shapes)
+    middle = ''.join(['_',str(coeffs_to_inc),'coeffs'])
+    new_moms = ''.join([start,middle,'.',filetype])
+    np.savetxt(new,moms, moments)
+if save_paras == 1:
+    new_paras = ''.join([start,'_paras.',filetype])
+    np.savetxt(new_paras, shapes)
 if generate_fits == 1:
-	make_fitsfile(info, model) 
+    make_fitsfile(new_info, model) 
 
