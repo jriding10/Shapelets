@@ -31,7 +31,7 @@ filetype = 'txt'
 n_max = 25                                # maximum shapelet order
 coeffs = 0.5*(n_max+1)*(n_max+2)          # number of moments
 coeffs_to_inc = 351                       # manually dictate how many
-obj_size = 12.0
+obj_size = 8.0
 
 n_approx = 5                            # for beta searcher
 
@@ -64,7 +64,7 @@ if from_fits == 0:
     source_info[1,3] = source_info[0,3]
 
 coords0,sky_coords0,dataset0,coldata0=polish_data(source_info,data,ext_source, ang_res)
-    
+
 if generate_new_parameters == 0:
     dataset = dataset0
     coords = coords0
@@ -74,14 +74,17 @@ if generate_new_parameters == 0:
 new_info = source_info.copy()
   
 if generate_new_parameters == 1:  
-    (beta1, beta2, PA, offsets) = cov_fit(coords0, dataset0)
+    (major, minor, PA, offsets) = cov_fit(coords0, dataset0)
     PA = -PA
-    shapes[0] = np.degrees(source_info[0,0])
-    shapes[1] = np.degrees(source_info[1,0])
+    shapes[0] = np.degrees(source_info[0,0])+m.degrees(offsets[1])
+    shapes[1] = np.degrees(source_info[1,0])+m.degrees(offsets[0])
     shapes[4] = np.degrees(PA)
     new_info[0,0] = np.radians(shapes[0])
     new_info[1,0] = np.radians(shapes[1])
-    
+    new_info[0,2] += round(offsets[1]/ang_res)
+    new_info[1,2] += round(offsets[0]/ang_res)
+#np.savetxt('/home/jthomps/Dropbox/Documents/Shapelets/Image_shapes/Text/Vir_coords.txt',coords0)
+
 (coords,sky_coords,dataset,coldata)=polish_data(new_info,data,ext_source,ang_res)
 
 PA = np.radians(shapes[4])
@@ -90,10 +93,11 @@ rot_coords = np.dot(transform,np.transpose(coords))
 im_coords = np.transpose(rot_coords)
 
 if generate_new_parameters == 1:
-	beta1, beta2, a, temp = beta1_beta2(im_coords,coldata,n_approx,obj_size,ang_res)  
+	beta1, beta2, a, temp = major_minor(im_coords,coldata,n_approx,ext_source,ang_res)  
 	shapes[2] = np.degrees(beta1*60)
 	shapes[3] = np.degrees(beta2*60)	
-   
+
+print shapes   
 ######################################################################
 ## Maths time...
 
@@ -126,17 +130,18 @@ for i in range(0, nside):
         final_image[i,j] = col_mod[k]
 
 if create_plots ==1:
-        figure(0)
+        plt.figure(0)
         plt_max = np.max(dataset.flatten())
         plt_min = np.min(dataset.flatten())
         plt.contour(dataset,vmin=plt_min,vmax=plt_max)
         plt.colorbar()
-        figure(1)
+        plt.figure(1)
         plt.contour(final_image,vmin=plt_min,vmax=plt_max)
         plt.colorbar()
-        figure(2)
+        plt.figure(2)
         plt.contour(residuals,vmin=plt_min,vmax=plt_max)
         plt.colorbar()        
+	plt.show()
         
 new_moms = ''
 new_paras = ''
@@ -148,6 +153,6 @@ if save_moments == 1:
 if save_paras == 1:
     new_paras = ''.join([start,'_paras.',filetype])
     np.savetxt(new_paras, shapes)
-if generate_fits == 1:
+if create_fits == 1:
     make_fitsfile(new_info, model) 
 
