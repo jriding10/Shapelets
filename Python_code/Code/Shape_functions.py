@@ -1,6 +1,14 @@
 #! /usr/bin/env python
 # Shape_functions.py
 # Contains a number of functions used in the shapelet main code
+# beta1_beta2:  attempts to otimise major and minor axis values. Not a smart
+#               algorithm.
+# deconstruct:  compresses the image file
+# basis:        constructs the required orthonormal basis function
+# simple_stats: computes NMSE, PSNR and entropy of the fit
+# reconstruct:  decompresses the model
+# min_co:       removes uninformative coefficients
+# majorminor:   smarter major/minor axis finder but computationally longer
 
 import math as m
 import numpy as np
@@ -175,29 +183,35 @@ def basis(coords,b1,b2,nmax):
 #######################################################################
 ## Calculates some simple statistics about the data - NMSE & PSNR
 
-def simple_stats(coldata, colmod):
+def simple_stats(data, model, resids):
 
-    data_size = coldata.shape
-    npix = data_size[0]
-    performance = np.zeros((2))
-    norm1 = 0
-    norm2 = 0
-    mse = 0
-    PSNR = 0
+    nbins = 10000
+    data_size = data.shape
+    nside = data_size[0]
+    performance = np.zeros((5))
+    data_entropy = 0
+    model_entropy = 0
+    resid_entropy = 0
+    
+    sum_data = np.sum(data)
+    sum_model = np.sum(model)
+    sum_resids = np.sum(resids)
+    max_data = np.max(data)
+    max_model = np.max(model)
+    max_resids = np.max(resids)
 
-    for i in range(0,npix-1):
-           z = coldata[i] - colmod[i]
-           norm1+=coldata[i]
-           norm2+=colmod[i]
-           mse+=z*z
+    sqerr = np.square(resids)    
+    sum_sqerr = np.sum(sqerr)
 
-    NMSE = mse/(norm1*norm2)
+    NMSE = np.sum(sqerr)/(sum_data*sum_data)
 
-    G = np.max(coldata)
-
-    PSNR = 20*np.log10(G)+20*np.log10(npix)-10*np.log10(mse)
+    PSNR = 20*np.log10(max_data)-10*np.log10(sum_sqerr)+40*np.log10(nside)
     performance[0] = NMSE
     performance[1] = PSNR
+    performance[2] = data_entropy
+    performance[3] = model_entropy
+    performance[4] = resid_entropy
+    
 
     return performance
 
@@ -207,13 +221,26 @@ def simple_stats(coldata, colmod):
 def quick_model(coords,coldata,beta1,beta2,n):
 
     npix = coords.shape[0]
+    nside = int(np.sqrt(npix))
+    data = np.zeros((nside, nside))
+    model = np.zeros((nside, nside))
+    resids = np.zeros((nside, nside))
     tot_moms = 0.5*(n-1)*(n-2)        
     temp_moments = np.zeros((tot_moms,3))
     temp_mod = np.zeros((npix,1))
 
     temp_moments = deconstruct(coords,coldata,beta1,beta2,n)
     temp_mod = reconstruct(coords,temp_moments,beta1,beta2)
-    performance = simple_stats(coldata,temp_mod)
+    
+    k=-1
+    for i in range(0, nside-1):
+        for j in range(0, nside-1):
+            k+=1
+            data[i,j] = coldata[k]
+            model[i,j] = temp_mod[k]
+            resids[i,j] = coldata[k]-temp_mod[k]
+
+    performance = simple_stats(data, model, resids)
 
     return performance[0]
 

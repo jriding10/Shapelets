@@ -13,9 +13,9 @@ from Data_manipulation import *
 from_fits = 1                           # use a fits file
 generate_new_parameters = 1             # calc paras
 generate_new_moments = 1                # calc coeffs
-filename = '../Fits_files/VirA.fits'
+filename = '../Fits_files/FnxA.fits'
 paras = '../Models/ForA_paras.txt'
-moms = '../Models/VirA_351coeffs.txt'
+moms = '../Models/ForA_351coeffs.txt'
 
 # Outputs
 create_plots = 1
@@ -23,7 +23,7 @@ save_moments = 0
 save_paras = 0
 create_fits = 0
 dir_name = '../Models/'
-source_name = 'VirA'
+source_name = 'ForA'
 filetype = 'txt'
 
 ##############################################################################
@@ -101,6 +101,12 @@ print shapes
 ######################################################################
 ## Maths time...
 
+data_size = im_coords.shape
+nside = int(m.sqrt(data_size[0]))
+colresid = np.zeros((nside*nside))
+final_image=np.zeros((nside,nside))
+residuals = np.zeros((nside,nside))
+
 beta1 = m.radians(shapes[2]/60)
 beta2 = m.radians(shapes[3]/60)
 
@@ -108,18 +114,6 @@ if generate_new_moments == 1:
 	moments = deconstruct(im_coords,coldata,beta1,beta2,n_max)
 
 col_mod = reconstruct(im_coords,moments,beta1,beta2)
-
-performance = simple_stats(coldata,col_mod)
-print performance
-
-#######################################################################
-## Visualisations
-	
-data_size = im_coords.shape
-nside = int(m.sqrt(data_size[0]))
-final_image=np.zeros((nside,nside))
-residuals = np.zeros((nside,nside))
-colresid = np.zeros((nside*nside))
 colresid = coldata-col_mod
 
 k=-1
@@ -129,6 +123,12 @@ for i in range(0, nside):
         residuals[i,j] = colresid[k]
         final_image[i,j] = col_mod[k]
 
+performance = simple_stats(data, final_image, residuals)
+print performance
+
+#######################################################################
+## Visualisations
+	
 if create_plots ==1:
         plt.figure(0)
         plt_max = np.max(dataset.flatten())

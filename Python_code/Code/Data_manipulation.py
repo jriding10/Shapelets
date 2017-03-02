@@ -2,7 +2,6 @@
 # Data_manipulation.py
 # Contains a number of functions used to prepare the data for use by
 # the main maths routinues. 
-# def userIO        :inputs user choices
 # def import_fits    :reads fits data and header
 # def polish_data    :centers source, creates coordinates
 # def cov_fit        :determines PA and flux center
@@ -10,17 +9,21 @@
 
 import math as m
 import numpy as np
-import pyfits
+from astropy.io import fits
 
 ##########################################################################
-## Get the relevent information from a fits file, data and header
+## import_fits: takes the specified fits filename, opens it and extracts
+# the relevant information. Note that degrees are converted into radians.
+#========================================================================# 
 
 def import_fits(filename):
+    # open file
     obj_info = np.zeros((2,4))
-    fits_info = pyfits.getheader(filename)
-    alldata = pyfits.getdata(filename)
+    obj_data = fits.open(filename)
+    fits_info = obj_data[0].header
+    alldata = obj_data[0].data
 
-    # relevent stuff from the header
+    # relevant coordinates from header
     ra = np.radians(fits_info['CRVAL1'])
     dec = np.radians(fits_info['CRVAL2'])
     ra_res = np.radians(fits_info['CDELT1'])
@@ -28,23 +31,22 @@ def import_fits(filename):
     ra_pxl = fits_info['CRPIX1']
     dec_pxl = fits_info['CRPIX2']
 
-    num_axis = fits_info['NAXIS']
     ra_side = fits_info['NAXIS1']
     dec_side = fits_info['NAXIS2']
 
-    if num_axis == 3:
-        data = alldata[0,:,:]
-    if num_axis == 4:
-        data = alldata[0,0,:,:]
+    data = alldata[0,0,:,:]
 
     # packaging row 0 = ra stuff, row 1 = dec stuff
     obj_info[0,:] = [ra, ra_res, ra_pxl, ra_side]
     obj_info[1,:] = [dec, dec_res, dec_pxl, dec_side]
-    
+   
+    obj_data.close() 
     return (obj_info, data)
 
 #######################################################################
-## Create usable data and coordinates
+## polish_data: responsible for resizing the data, transforming it into
+# columns and creating meaningful axii.
+#=====================================================================#
 
 def polish_data(sinfo, in_data, sizing, ang_res):
 
