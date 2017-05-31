@@ -11,6 +11,7 @@
 # majorminor:   smarter major/minor axis finder but computationally longer
 
 import math as m
+import skimage.measure as kpi
 import numpy as np
 #######################################################################
 ## Attempts to optimise beta1, beta2: non-optimal (and dumb - see temp.py for a smarter version) routinue for 2 dependent varibles
@@ -188,10 +189,7 @@ def simple_stats(data, model, resids):
     nbins = 10000
     data_size = data.shape
     nside = data_size[0]
-    performance = np.zeros((5))
-    data_entropy = 0
-    model_entropy = 0
-    resid_entropy = 0
+    performance = np.zeros((3))
     
     sum_data = np.sum(data)
     sum_model = np.sum(model)
@@ -199,6 +197,19 @@ def simple_stats(data, model, resids):
     max_data = np.max(data)
     max_model = np.max(model)
     max_resids = np.max(resids)
+    mean_data = np.mean(data)
+    mean_model = np.mean(model)
+    var_data = np.var(data)
+    var_model = np.var(model)    
+
+    cov_xy = 1
+    ssim1 = 4*mean_data*mean_model*cov_xy
+    ssim2 = (mean_data**2 + mean_model**2)*(var_data**2 + var_model**2)
+    ssim = ssim1/ssim2
+    
+#    nrmse = kpi.compare_nrmse(data, model)
+#    psnr = kpi.compare_psnr(data, model)
+#    ssim = kpi.compare_ssim(data, model)    
 
     sqerr = np.square(resids)    
     sum_sqerr = np.sum(sqerr)
@@ -208,9 +219,7 @@ def simple_stats(data, model, resids):
     PSNR = 20*np.log10(max_data)-10*np.log10(sum_sqerr)+40*np.log10(nside)
     performance[0] = NMSE
     performance[1] = PSNR
-    performance[2] = data_entropy
-    performance[3] = model_entropy
-    performance[4] = resid_entropy
+    performance[2] = ssim
     
 
     return performance
@@ -299,7 +308,7 @@ def minco(coords,coldata,moments,beta1,beta2,mse):
            z = coldata[k] - colmod[k]
            mse+=z*z
 
-        resid_nmse = mse/npix
+        resid_nmse = mse/(np.sum(coldata)**2)
         print i, resid_nmse
 
     tcoeffs = i+1

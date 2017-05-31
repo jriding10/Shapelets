@@ -18,10 +18,11 @@ paras = '../Models/ForA_paras.txt'
 moms = '../Models/ForA_351coeffs.txt'
 
 # Outputs
-create_plots = 1
-save_moments = 0
-save_paras = 0
-create_fits = 0
+create_plots = 1                        # plot the results
+save_moments = 0                        # save the results
+save_paras = 0                          # save the parameters
+min_coeffs = 1                          # minimise the number of coefficients used
+cutoff_nmse = 10e-6
 dir_name = '../Models/'
 source_name = 'ForA'
 filetype = 'txt'
@@ -31,7 +32,7 @@ filetype = 'txt'
 n_max = 25                                # maximum shapelet order
 coeffs = 0.5*(n_max+1)*(n_max+2)          # number of moments
 coeffs_to_inc = 351                       # manually dictate how many
-obj_size = 8.0
+obj_size = 8.0                            # in arcmin
 
 n_approx = 5                            # for beta searcher
 
@@ -52,17 +53,6 @@ ang_res = max(abs(source_info[0,1]), abs(source_info[1,1]))
 #######################################################################
 ## Setting up the variables
     
-# default sizes for simple model viewing
-if from_fits == 0:
-    source_info[0,0] = shapes[0]
-    source_info[1,0] = shapes[1]
-    source_info[0,1] = ext_source/pxl_obj
-    source_info[1,1] = source_info[0,1]
-    source_info[0,2] = tot_pxl/2
-    source_info[1,2] = source_info[0,2]
-    source_info[0,3] = tot_pxl
-    source_info[1,3] = source_info[0,3]
-
 coords0,sky_coords0,dataset0,coldata0=polish_data(source_info,data,ext_source, ang_res)
 
 if generate_new_parameters == 0:
@@ -97,7 +87,6 @@ if generate_new_parameters == 1:
 	shapes[2] = np.degrees(beta1*60)
 	shapes[3] = np.degrees(beta2*60)	
 
-print shapes   
 ######################################################################
 ## Maths time...
 
@@ -113,7 +102,18 @@ beta2 = m.radians(shapes[3]/60)
 if generate_new_moments == 1:
 	moments = deconstruct(im_coords,coldata,beta1,beta2,n_max)
 
-col_mod = reconstruct(im_coords,moments,beta1,beta2)
+moments = moments[np.argsort(abs(moments[:,2]))]
+moments = np.flipud(moments)
+if min_coeffs == 1:
+    tot_coeffs = minco(im_coords, coldata, moments, shapes[2], shapes[3], cutoff_nmse)
+else:
+    tot_coeffs = coeffs_to_inc
+
+moms_inc = np.zeros((tot_coeffs, 3))
+for i in range(0, tot_coeffs+1):
+    moms_inc[i,:] = moments[i,:]
+
+col_mod = reconstruct(im_coords,moms_inc,beta1,beta2)
 colresid = coldata-col_mod
 
 k=-1
@@ -123,7 +123,7 @@ for i in range(0, nside):
         residuals[i,j] = colresid[k]
         final_image[i,j] = col_mod[k]
 
-performance = simple_stats(data, final_image, residuals)
+performance = simple_stats(dataset, final_image, residuals)
 print performance
 
 #######################################################################
@@ -149,7 +149,7 @@ start = ''.join([dir_name,source_name])
 if save_moments == 1:
     middle = ''.join(['_',str(coeffs_to_inc),'coeffs'])
     new_moms = ''.join([start,middle,'.',filetype])
-    np.savetxt(new,moms, moments)
+    np.savetxt(new_moms, moms_inc)
 if save_paras == 1:
     new_paras = ''.join([start,'_paras.',filetype])
     np.savetxt(new_paras, shapes)
