@@ -21,7 +21,7 @@ moms = '../Models/ForA_351coeffs.txt'
 create_plots = 1                        # plot the results
 save_moments = 0                        # save the results
 save_paras = 0                          # save the parameters
-min_coeffs = 1                          # minimise the number of coefficients used
+min_coeffs = 0                          # minimise the number of coefficients used
 cutoff_nmse = 10e-6
 dir_name = '../Models/'
 source_name = 'ForA'
@@ -110,7 +110,7 @@ else:
     tot_coeffs = coeffs_to_inc
 
 moms_inc = np.zeros((tot_coeffs, 3))
-for i in range(0, tot_coeffs+1):
+for i in range(0, tot_coeffs):
     moms_inc[i,:] = moments[i,:]
 
 col_mod = reconstruct(im_coords,moms_inc,beta1,beta2)
@@ -153,6 +153,4 @@ if save_moments == 1:
 if save_paras == 1:
     new_paras = ''.join([start,'_paras.',filetype])
     np.savetxt(new_paras, shapes)
-if create_fits == 1:
-    make_fitsfile(new_info, model) 
 
