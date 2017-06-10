@@ -124,7 +124,7 @@ for i in range(0, nside):
         final_image[i,j] = col_mod[k]
 
 performance = simple_stats(dataset, final_image, residuals)
-print performance
+print (performance)
 
 #######################################################################
 ## Visualisations
@@ -141,7 +141,7 @@ if create_plots ==1:
         plt.figure(2)
         plt.contour(residuals,vmin=plt_min,vmax=plt_max)
         plt.colorbar()        
-	plt.show()
+        plt.show()
         
 new_moms = ''
 new_paras = ''
