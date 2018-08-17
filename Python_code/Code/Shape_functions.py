@@ -317,12 +317,14 @@ def minco(coords,coldata,moments,beta1,beta2,mse):
 
 #######################################################################
 
-def major_minor(coords,coldata,n,ext_source,ang_res):
+def major_minor(coords,coldata,n,dinfo):
     
-    nside = m.sqrt(coldata.shape[0])
+    nside = dinfo[0]
+    ang_res = dinfo[1]
     max_iters = 2000
     fine = 10e6        # precision of the two stages
     coarse = 10e4
+    fill_factor = 0.8  # percentage of data that contains source
     temp = np.ones((max_iters,3))
     done = 0 
     second = 0
@@ -330,7 +332,7 @@ def major_minor(coords,coldata,n,ext_source,ang_res):
 
     max_beta = 0.9*pow(n,-0.52)*nside*ang_res
     min_beta = ang_res/2
-    guess = 0.9*pow(n,-0.52)*ext_source
+    guess = 0.9*pow(n,-0.52)*fill_factor*nside
                           
     # Initialise the loop
     prev_beta1 = guess  

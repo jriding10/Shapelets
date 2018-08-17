@@ -14,8 +14,8 @@ from_fits = 1                           # use a fits file
 generate_new_parameters = 1             # calc paras
 generate_new_moments = 1                # calc coeffs
 filename = '../Fits_files/FnxA.fits'
-paras = '../Models/ForA_paras.txt'
-moms = '../Models/ForA_351coeffs.txt'
+paras = '../Models/ForA_paras2.txt'
+moms = '../Models/ForA_351coeffs2.txt'
 
 # Outputs
 create_plots = 1                        # plot the results
@@ -24,7 +24,7 @@ save_paras = 0                          # save the parameters
 min_coeffs = 0                          # minimise the number of coefficients used
 cutoff_nmse = 10e-6
 dir_name = '../Models/'
-source_name = 'ForA'
+source_name = 'ForA_2018'
 filetype = 'txt'
 
 ##############################################################################
@@ -32,7 +32,6 @@ filetype = 'txt'
 n_max = 25                                # maximum shapelet order
 coeffs = 0.5*(n_max+1)*(n_max+2)          # number of moments
 coeffs_to_inc = 351                       # manually dictate how many
-obj_size = 8.0                            # in arcmin
 
 n_approx = 5                            # for beta searcher
 
@@ -41,41 +40,36 @@ shapes = np.zeros((5))
 if from_fits == 1:
     (source_info, data) = import_fits(filename)
 
-if generate_new_parameters == 0:
-    shapes = np.loadtxt(paras)
 if generate_new_moments == 0: 
     moments = np.loadtxt(moms)
 
-
-ext_source = np.radians(obj_size/60)
-ang_res = max(abs(source_info[0,1]), abs(source_info[1,1]))  
+ang_res_ra = source_info[0,1]  
+ang_res_dec = source_info[1,1] 
+new_size = source_info.copy()
 
 #######################################################################
 ## Setting up the variables
-    
-coords0,sky_coords0,dataset0,coldata0=polish_data(source_info,data,ext_source, ang_res)
 
+# Creates the matrices from the fits files information. This includes
+# coordinates (sky and matrix) and the resized data (column and matrix).
+coords,sky_coords,dataset,coldata=resize_data(source_info,data,new_size)
+
+# Deals with either loading pre-existing shapelets or creating a new model.
 if generate_new_parameters == 0:
-    dataset = dataset0
-    coords = coords0
-    coldata = coldata0
-    sky_coords = sky_coords0
-
-new_info = source_info.copy()
+    shapes = np.loadtxt(paras)
   
-if generate_new_parameters == 1:  
-    (major, minor, PA, offsets) = cov_fit(coords0, dataset0)
+if generate_new_moments == 0: 
+    moments = np.loadtxt(moms)
+else:  
+    (major, minor, PA, offsets) = cov_fit(coords, dataset)
     PA = -PA
     shapes[0] = np.degrees(source_info[0,0])+m.degrees(offsets[1])
     shapes[1] = np.degrees(source_info[1,0])+m.degrees(offsets[0])
     shapes[4] = np.degrees(PA)
     new_info[0,0] = np.radians(shapes[0])
     new_info[1,0] = np.radians(shapes[1])
-    new_info[0,2] += round(offsets[1]/ang_res)
-    new_info[1,2] += round(offsets[0]/ang_res)
-#np.savetxt('/home/jthomps/Dropbox/Documents/Shapelets/Image_shapes/Text/Vir_coords.txt',coords0)
-
-(coords,sky_coords,dataset,coldata)=polish_data(new_info,data,ext_source,ang_res)
+    new_info[0,2] += round(offsets[1]/ang_res_ra)
+    new_info[1,2] += round(offsets[0]/ang_res_dec)
 
 PA = np.radians(shapes[4])
 transform = ([[m.cos(PA), -m.sin(PA)], [m.sin(PA), m.cos(PA)]])

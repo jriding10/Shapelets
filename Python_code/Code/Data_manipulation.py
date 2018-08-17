@@ -3,7 +3,7 @@
 # Contains a number of functions used to prepare the data for use by
 # the main maths routinues. 
 # def import_fits    :reads fits data and header
-# def polish_data    :centers source, creates coordinates
+# def resize_data    :centers source, creates coordinates
 # def cov_fit        :determines PA and flux center
 # def make_fitsfile :creates a fits file containing the model image
 
@@ -44,26 +44,25 @@ def import_fits(filename):
     return (obj_info, data)
 
 #######################################################################
-## polish_data: responsible for resizing the data, transforming it into
+## resize_data: responsible for resizing the data, transforming it into
 # columns and creating meaningful axii.
 #=====================================================================#
 
-def polish_data(sinfo, in_data, sizing, ang_res):
+def resize_data(sinfo, in_data, new_size):
 
     fudge = 100.
-    # assumes square dataset
-    side = max(sinfo[0,3], sinfo[1,3])-1
-    obj_size_pxls = int(round(sizing/ang_res)*fudge)
+    # ra corresponds to columns, dec to rows in matrix format
+    num_rows = sinfo[1,3]-1
+    num_cols = sinfo[0,3]-1
+    ra_pxl = sinfo[0,2]
+    dec_pxl = sinfo[1,2]
 
-    if obj_size_pxls > side:
-        nside = side
-    else:
-        nside = obj_size_pxls
-    
-    midpix_ra = sinfo[0,2]
-    midpix_dec = sinfo[1,2]
+    new_num_rows = new_size[1,3]-1
+    new_num_cols = new_size[0,3]-1
+    new_ra_pxl = new_size[0,2]
+    new_dec_pxl = new_size[1,2]
 
-    # ensuring we stay within the bounds of the array
+    # checking that the new size is not greater than the original
     if (sinfo[0,2]+nside/2) > side:
         nside = 2*(side-midpix_ra)
     if (sinfo[0,2]-nside/2) < 0:
