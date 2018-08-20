@@ -52,62 +52,101 @@ except:
 ##########################################################################
 
 class Shapelet:
-    def __init__(self, centreRA=0.0, centreDec=0.0, moments=[], \
-    majorAxis=3.0, minorAxis=1.0, positionAngle=90, maxBasisIndex=5, \ 
-    normalisedMSE=0.0, averageSSIM=1.0) 
+    def __init__(self, centreRA=0.0, centreDec=0.0, extendedSource=[], \
+    yRApxl=0, xDecpxl=0, pxlCoordList = [], xAngularScale=1.0, \ 
+    yAngularScale=1.0, xExtent=100, yExtent=100, yRApxl=0, xDecpxl=0, \
+    moments=[], majorAxis=3.0, minorAxis=1.0, positionAngle=90, \
+    maxBasisIndex=5, normalisedMSE=0.0, averageSSIM=1.0): 
+    
         self.centreRA = centreRA
         self.centreDec = centreDec
-        self.maxBasisIndex = maxBasisIndex
-        self.majorAxis = majorAxis
-        self.minorAxis = minorAxis
-        self.positionAngle = positionAngle
-        self.moments = moments
-        self.normalisedMSE = normalisedMSE
-        self.averageSSIM = averageSSIM
-    
-    def calcNumberMoments(self):
-        totalNumMoments = 0.5*(self.maxBasisIndex + 1)*(self.maxBasisIndex + 2)
-        return totalNumMoments
-        
-    def getMoments(self, filename, sourceName): 
-        hermite_coeffs_file = 'hermite_coeffs.txt'    
-        if (needCalcMoments):
-            hermitePolynomialCoeffs = np.loadtxt( filename )
-            self.moments = decomposeSource( sourceName.imageOfSource )            
-        else:
-            self.moments = np.loadtxt( filename )
-         
-##########################################################################
-## The Image Class: An image can be the original data or the reproduced ##
-## model. What defines it is a matrix of flux (Jy.beam^-1) and its      ##
-## dimensions - angular scale in both x and y, extend in both x and y,  ##
-## and a matrix/pixel/coordinate set that maps (RA, Dec) to (x, y).     ##
-## Pixels are used by the fits file in the header information.          ##
-##                                                                      ##
-##          matrix(row, column) = (pxl2, pxl1) = (Dec, RA).             ##
-##                                                                      ##
-##########################################################################       
-    
-class ExtendedSource:
-    def __init__(self, imageOfSource=[], RA=0.0, Dec=0.0, yRApxl=0, \
-    xDecpxl=0, xAngularScale=1.0, yAngularScale=1.0, xExtent=100, \
-    yExtent=100, yRApxl=0, xDecpxl=0)
-        self.imageOfSource = imageOfSource
-        self.RA = RA
-        self.Dec = Dec 
+        self.extendedSource = extendedSource
         self.yRApxl = yRApxl
         self.xDecpxl = xDecpxl
+        self.pxlCoordinateList = pxlCoordList
         self.xAngularScale = xAngularScale      
-        self.yAngularScale = yAngularScale   
-    
+        self.yAngularScale = yAngularScale
+        self.xExtent = xExtent
+        self.yExtent = yExtent
+        self.moments = moments
+        self.majorAxis = majorAxis
+        self.minorAxis = minorAxis        
+        self.positionAngle = positionAngle        
+        self.maxBasisIndex = maxBasisIndex
+        self.normalisedMSE = normalisedMSE
+        self.averageSSIM = averageSSIM
+
+#------------------------------------------------------------------------#    
+    def calcNumberMoments(self):
+        totalNumMoments = 0.5*(self.maxBasisIndex + 1)* \
+        (self.maxBasisIndex + 2)
+        return totalNumMoments
+
+#------------------------------------------------------------------------#        
+    def calcMoments(self):
+        uCoords = self.pxlCoordList[:,0]/self.major
+        vCoords = self.pxlCoordList[:,1]/self.minor
+             
+        uShapeletBasis = calcShapeletBasis(uCoords, self.major)
+        vShapeletBasis = calcShapeletBasis(vCoords, self.minor)
+        flatSourceArray = flattenExtendedSourceArray()
+        
+        self.moments=np.zeros((self.maxBasisIndex+1,self.maxBasisIndex+1) 
+        
+        k = 0
+        for n1 in range( self.maxBasisIndex ):
+            for n2 in range( self.maxBasisIndex ):
+                if (n1+n2) <= self.maxBasisIndex:
+                    basisFunction = np.multiple((uShapeletBasis[n1,:],\
+                    vShapeletBasis[n2, :]), axis=1)
+                    self.moments[n1,n2]=calcLeastSquares(basisFunction, \
+                    flatSourceArray)
+                
+#------------------------------------------------------------------------#
+    def calcShapeletBasis( self, zCoords, beta ):
+        zGauss = np.exp(0.5*np.array(zCoords)**2)
+        normConst1 = m.sqrt(m.pow(beta,2)*m.sqrt(m.pi))
+        
+        zHermiteBasis = calcHermiteFunction( zCoords )
+                       
+        for n in range( self.maxBasisIndex ):
+            normConst2 = m.sqrt(m.pow(2, n)*m.factorial(n))
+            normConstant = 1./(normConst1*normConst2)
+            shapeletBasis = normConstant*zGauss*hermite[n,:]
+            
+        return shapeletBasis  
+            
+#------------------------------------------------------------------------#
+   def calcHermiteFunction( zCoords ):
+       hermitePolynomials = np.loadtxt('hermite_coeffs.txt')
+       for n in range( self.maxBasisIndex ):
+            normConstant = 1./normConst2
+            k = 0
+            hermite = 0.
+            while (k <= n ):
+                hermite[n, :] += hermitePolynomials[n, k]* \
+                m.pow((np.array(zCoords)),(n-k))
+                k += 1
+            
+        return hermite           
+
+#------------------------------------------------------------------------#
+    def calcLeastSquares(self, basisFunction, flatSourceArray ):
+        transposeBasis = np.transpose(basisFunction)
+        demoninator = np.dot(transposeBasis, basisFunction)
+        numerator = np.dot(transposeBasis, flatSourceArray)
+        aMoment = numerator/demoninator
+        return aMoment 
+                
+#------------------------------------------------------------------------#    
     def getFitsFile(self, filename):
         fitsFile = pyfits.open( filename )
         fitsHeader = fitsFile[0].header
-        self.imageOfSource = fitsFile[1].data
+        self.extendedSource = fitsFile[1].data
         
         # RA == y axis/column indices, Dec == x axis/row indices
-        self.RA = np.radians(fitsHeader['CRVAL1'])
-        self.Dec = np.radians(fitsHeader['CRVAL2'])
+        RA = np.radians(fitsHeader['CRVAL1'])
+        Dec = np.radians(fitsHeader['CRVAL2'])
         self.xAngularScale = np.radians(fitsHeader['CDELT2'])
         self.yAngularScale = np.radians(fitsHeader['CDELT2'])
         self.xDecpxl = fitsHeader['CRPIX2']
@@ -115,63 +154,127 @@ class ExtendedSource:
         self.xExtent = fitsHeader['NAXIS2']
         self.yExtent = fits_info['NAXIS1']
         fitsFile.close()
+        
+        # Reference the extended source to the pxl (0,0)   
+        changeRADecRef( 0, 0 ) 
+                
 
-
-    def resizeImageOfSource(self, newXstart, newYstart, newXend, newYend):
-        changeRADecRef( newXpxl, newYpxl)      
+#------------------------------------------------------------------------#
+    def resizeImageOfSource(self, newXstart, newYstart, newXend, newYend): 
         self.xExtent = newXend-newXstart
-        self.yExtend = newYend-newYstart
+        self.yExtend = newYend-newYstart    
+
+        for i in range( self.xExtent ):
+            for j in range( self.yExtent ):
+                newSource[i, j] = self.extendedSource[i+newXstart, \
+                j+newYstart]         
+         
+        changeRADecRef( newXstart, newYstart )      
         self.yRApxl = 0
         self.xDecpxl = 0
-       
-        # change reference so that pxl (0,0) occurs at image centre
-        centreXpxl = floor(self.xExtent/2)
-        centreYpxl = floor(self.yExtent/2)
-        changeRADecRef( centreXpxl, centreYpxl )
-        self.yRApxl = 0
-        self.xDecpxl = 0       
         
-        k = 0
-        for i in range( newXstart, newXend+1 ):
-            for j in range( newYstart, newYend+1 ):
-                newImageOfSource[k, :] = self.imageOfSource[i, j]
-                k = k+1          
-        self.imageOfSource = newImageOfSource
-       
-    def changeRADecRef(self, newXpxl, newYpxl ):
+#------------------------------------------------------------------------#       
+    def changeRADecRef( self, newXpxl, newYpxl ):       
         if (self.yRApxl ne newYpxl):
-            self.RA = self.RA - (self.yRApxl - newYpxl)*self.yAngularScale
-            self.yRApxl = newXpxl
+            self.RA = self.RA-(self.yRApxl-newYpxl)*self.yAngularScale
+            self.yRApxl = newYpxl
         if (self.xDecpxl ne newXpxl):
-            self.Dec = self.Dec - (self.xDecpxl - newXpxl)*self.xAngularScale
+            self.Dec = self.Dec-(self.xDecpxl-newXpxl)*self.xAngularScale
             self.xDecpxl = newXpxl
 
-   def coordinateList(self):
-       for i in range( self. 
-   def covarianceFit(self, shapeletName)
-           
-    S = sum(sum(data))
-    nside = m.sqrt(coords.shape[0])
-    nside = int(nside)
-    npix = nside*nside
-    offsets = (0.0,0.0)
-    addmat = np.zeros((npix,2))       
+#------------------------------------------------------------------------#
+   def calcCoordinateList(self, xCentrePxl, yCentrePxl):
+       changeRADecRef( xCentrePxl, yCentrePxl )
+       xStart = -1*xCentrePxl
+       yStart = -1*yCentrePxl
+       k = 0
+       for i in range( self.xExtent ):
+           for j in range( self.yExtent ):
+                coordinates[k, 0] = xStart + i
+                coordinates[k, 1] = yStart + j
+                k += 1
+       self.pxlCoordList = coordinates
+
+#------------------------------------------------------------------------#
+   def flattenExtendedSourceArray( self ):
+       k = 0
+       for i in range( self.xExtent ):
+           for j in range( self.yExtent ):
+               flatSourceArray[k] = self.extendedSource[i, j]
+               k += 1
+       return flatSourceArray
+
+#------------------------------------------------------------------------#
+   def calcCovarianceFit(self):
+       totalFluxOfSource = np.sum( np.sum( self.extendedSource ))
+       numberOfPxls = self.xExtent*self.yExtent
        
+       fluxWeightedCentre=calcWeightedCentre(totalFluxOfSource)
+       changeRADecRef( fluxWeightedCentre[0], fluxWeightedCentre[1] )
        
-class ShapeletGUI:
+       fluxMatrix = calcFluxMatrix( totalFluxOfSource )
+       (eigenval, eigenvect) = calcEigenValueDecomp( fluxMatrix )
+       
+       self.major = np.sqrt(eigenval[1])
+       self.minor = np.sqrt(eigenval[0])
+       self.positionAngle = m.atan2(eigenvect[1,1],eigenvect[0,1])
+       
+#------------------------------------------------------------------------#       
+    def calcWeightedCentre(self, totalFluxOfSource ):
+        k = 0
+        xCentre = 0.
+        yCentre = 0.
+        for i in range( xExtent ):
+            for j in range( yExtent ):
+                xCentre += self.extendedSource[i,j]*self.pxlCoordList[k,0]
+                yCentre += self.extendedSource[i,j]*self.pxlCoordList[k,1]
+                k += 1
+       
+        xCentre = int(xCentre/totalFluxOfSource)
+        yCentre = int(yCentre/totalFluxOfSource)
+        return fluxWeightedCentre = [xCentre, yCentre]
+        
+#------------------------------------------------------------------------#
+    def calcFluxMatrix(self, totalFluxOfSource):
+       # Matrix terms
+       xxFlux = 0.
+       yyFlux = 0.
+       xyFlux = 0.
+       
+       k = 0
+       for i in range( self.xExtent ):
+           for j in range( self.yExtent ):              
+               xxFlux = xxFlux + self.extendedSource[i,j]* \
+               self.pxlCoordList[k, 0]*self.pxlCoordList[k,0]
+               yyFlux = xxFlux + self.extendedSource[i,j]* \
+               self.pxlCoordList[k, 1]*self.pxlCoordList[k,1]       
+               xyFlux = xxFlux + self.extendedSource[i,j]* \
+               self.pxlCoordList[k, 0]*self.pxlCoordList[k,1] 
+               k += 1
+        
+       xxFlux = xxFlux/totalFluxOfSource
+       yyFlux = yyFlux/totalFluxOfSource
+       xyFlux = xyFlux/totalFluxOfSource
+       return fluxMatrix = [xxFlux, xyFlux, yyFlux]
+       
+#------------------------------------------------------------------------#
+    def calcEigenValueDecomp(self, fluxMatrix ):
+        trueFluxMatrix = np.array([[fluxMatrix[0],fluxMatrix[1]], \
+        [fluxMatrix[1],fluxMatrix[2]]]) 
+        
+        (eigenval, eigenvect) = np.linalg.eig(trueFluxMatrix)
+        return (eigenval, eigenvect)
+       
+#------------------------------------------------------------------------#
+    def calcTransformCoordinates( self ):
+        PA = self.positionAngle
+        transformMatrix=[[m.cos(PA), -m.sin(PA)],[m.sin(PA), m.cos(PA)]]
+        coordList=np.dot(transformMatrix,np.transpose(self. pxlCoordList))
+        self.pxlCoordList = np.transpose(coordList)
+          
+        
+##########################################################################       
+#class ShapeletGUI:
 
-# Load fits file
-sourceName = ExtendedSource()
-getFitsFile(filename, sourceName )
 
-# Resize extended source
-sourceName.resizeImageOfSource(newXstart, newYstart, newXend, newYend)
-
-# Decompose into moments
-shapeletName = Shapelet()
-shapeletName.maxBasisIndex = 25
-shapeletName.calcNumberMoments()
-pxlCoordinateList = sourceName.coordinateList()
-
-sourceName.covarianceFit( shapeletName )
 
