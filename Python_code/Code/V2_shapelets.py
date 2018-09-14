@@ -18,10 +18,16 @@
 
 import math as m
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib
 import astropy.io.fits as pyfits
 from scipy.special import eval_hermite
-#import tkinter
+from tkinter import *
+from tkinter import filedialog 
+matplotlib.use("TkAgg")
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg
+from matplotlib.figure import Figure
+
 
 ##########################################################################
 ## The Shapelet Class: A shapelet is defined by its major axis, minor   ##
@@ -157,8 +163,8 @@ class Shapelet:
 ## "looks like" the data.                                               ##
 ##########################################################################
 class SourceImage:
-    def __init__(self, RA=0.0, Dec=0.0, extended_source=[], yRApxl=0,
-                 xDecpxl=0, pxl_coords_list=[], x_angscale=1.0,
+    def __init__(self, RA=0.0, Dec=0.0, extended_source=None, yRApxl=0,
+                 xDecpxl=0, pxl_coords_list=None, x_angscale=1.0,
                  y_angscale=1.0, xextent=100, yextent=100,
                  max_basis_index=5, normalised_mse=0.0, avg_ssim=1.0,
                  major_axis=30, minor_axis=30, posAng=0. ):
@@ -216,17 +222,20 @@ class SourceImage:
 #------------------------------------------------------------------------#
     def resizeImageOfSource(self, new_xstart, new_ystart, new_xend, new_yend):
         self.xextent = new_xend-new_xstart
-        self.yExtend = new_yend-new_ystart
+        self.yextent = new_yend-new_ystart
+        new_source = np.zeros((xextent, yextent))
 
-        for i in range( self.xextent ):
-            for j in range( self.yextent ):
-                new_source[i, j] = self.extended_source[i+new_xstart,
-                j+new_ystart]
+        for i in range(self.xextent):
+            for j in range(self.yextent):
+                x = int(i+new_xstart)
+                y = int(j+new_ystart)
+                new_source[i, j] = self.extended_source[x, y]
          
         self.changeRADecRef(new_xstart, new_ystart)
         self.yRApxl = 0
         self.xDecpxl = 0
-        
+        self.extended_source = new_source
+
 #------------------------------------------------------------------------#       
     def changeRADecRef( self, new_xpxl, new_ypxl ):
         if (self.yRApxl != new_ypxl):
@@ -300,8 +309,8 @@ class SourceImage:
         k = 0
         xcentre = 0.
         ycentre = 0.
-        for i in range( self.xextent ):
-            for j in range( self.yextent ):
+        for i in range(self.xextent):
+            for j in range(self.yextent):
                 xcentre += self.extended_source[i,j]*self.pxl_coords_list[k,0]
                 ycentre += self.extended_source[i,j]*self.pxl_coords_list[k,1]
                 k += 1
@@ -394,10 +403,59 @@ class SourceImage:
         
         
 ##########################################################################       
-#class ShapeletGUI:
+class ShapeletGUI(tk.Frame):
+    def __init__(self, parent):
+        tk.Frame.__init__(self, parent)
+        self.parent = parent
+        self.parent.title('Shapelets')
+        self.fileLoad()
+        self.ImageDisplay()
+        self.SelectArea()
+        self.CalcShapelet()
+        self.SaveResult()
+        self.Quitter()
+
+#------------------------------------------------------------------------#
+    def quitter():
+        global root
+        if askyesno('Verify', 'Do you really want to quit?'):
+            root.destroy()
+
+#------------------------------------------------------------------------#
+    def fileLoad():
+        filename = filedialog.askopenfilename(initialdir = "/",
+                                              title = "Select file",
+                                              filetypes =
+                                              ("fits files","*.fits"))
+        source.getFitsFile(filename)
+
+#------------------------------------------------------------------------#
+    def displayFits():
+        fig = Figure(figsize(6,6))
+        fits_image = fig.add_subplot(111)
+
+        fits_data = source.extended_source
+        plt_max = np.max(fits_data.flatten())
+        plt_min = np.min(fits_data.flatten())
+        contour(fits_data,vmin=plt_min,vmax=plt_max)
+        colorbar()
+
+        fits_image.set_title('Raw Fits Data')
+        canvas = FigureCanvasTkAgg(fig, master=root)
+        canvas.get_tk_widget().pack()
+        canvas.draw()
+        
 ########################## MAIN PROGRAM ##################################
 
-filename = '../Fits_files/FnxA.fits'
+root = Tk()#------------------------------------------------------------------------#
+shapelet = Shapelet()
+source = SourceImage()
+model = SourceImage()
+residual = SourceImage()
+
+app = ShapeletGUI(root)
+root.mainloop()
+
 source_name = 'FornaxA'
 
 shapelet = Shapelet()
@@ -405,7 +463,6 @@ source = SourceImage()
 model = SourceImage()
 residual = SourceImage()
 
-source.getFitsFile(filename)
 
 x_centre_pxl = m.floor(source.xextent/2)
 y_centre_pxl = m.floor(source.yextent/2)
