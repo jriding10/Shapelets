@@ -56,11 +56,13 @@ def resize_data(sinfo, in_data, new_size):
     num_cols = sinfo[0,3]-1
     ra_pxl = sinfo[0,2]
     dec_pxl = sinfo[1,2]
+    side = max(num_rows, num_cols)
 
     new_num_rows = new_size[1,3]-1
     new_num_cols = new_size[0,3]-1
     new_ra_pxl = new_size[0,2]
     new_dec_pxl = new_size[1,2]
+    nside = max(new_num_rows, new_num_cols)
 
     # checking that the new size is not greater than the original
     if (sinfo[0,2]+nside/2) > side:
