@@ -22,7 +22,7 @@ import matplotlib
 import astropy.io.fits as pyfits
 from scipy.special import eval_hermite
 from tkinter import *
-from tkinter import filedialog 
+from tkinter import filedialog
 matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg
@@ -447,7 +447,7 @@ class ShapeletGUI(tk.Frame):
         
 ########################## MAIN PROGRAM ##################################
 
-root = Tk()#------------------------------------------------------------------------#
+root = Tk()
 shapelet = Shapelet()
 source = SourceImage()
 model = SourceImage()

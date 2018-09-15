@@ -90,8 +90,8 @@ def polish_data(sinfo, in_data, sizing, ang_res):
     for i in range(0,nside):
         rowaxis[i] = (i-midpix+1)*ang_res
 
-    off1 = sinfo[1,2]-midpix
-    off0 = sinfo[0,2]-midpix
+    off1 = int(sinfo[1,2]-midpix)
+    off0 = int(sinfo[0,2]-midpix)
 
     k=-1
     for i in range(0,nside):
