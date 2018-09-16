@@ -16,6 +16,7 @@
 ##                                                                      ##
 ##########################################################################
 
+import os
 import math as m
 import numpy as np
 import matplotlib
@@ -23,11 +24,14 @@ import astropy.io.fits as pyfits
 from scipy.special import eval_hermite
 from tkinter import *
 from tkinter import filedialog
+from tkinter import messagebox
 matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg
-from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
+fits_info = dict([('title',None), ('dirname', None), ('filetypes', None), ('fits_data', None),
+                ('nmax', 5), ('im_array', None), ('sizeData', None), ('sourcename', 'temp')])
+rect = dict([('x0', 0), ('x1', 1), ('y0', 0), ('y1', 1)])
 
 ##########################################################################
 ## The Shapelet Class: A shapelet is defined by its major axis, minor   ##
@@ -50,7 +54,8 @@ class Shapelet:
         self.position_angle = position_angle
         
 #------------------------------------------------------------------------#
-    def saveShapelet(self, source_name):
+    def saveShapelet(self):
+        source_name = fits_info['sourcename']
         filename = '../Models/' + source_name + '_moments.txt'
         np.savetxt(filename, self.moments)
         
@@ -61,7 +66,8 @@ class Shapelet:
         np.savetxt(filename, shapelet_parameters)
 
 #------------------------------------------------------------------------#  
-    def getShapelet(self, source_name):
+    def getShapelet(self):
+        source_name = fits_info['sourcename']
         filename = '../Models/' + source_name + '_moments.txt'
         self.moments = np.loadtxt(filename)
         
@@ -75,21 +81,21 @@ class Shapelet:
         self.position_angle = shapelet_parameters[4]
         
 #------------------------------------------------------------------------# 
-    def calcMoments( self, source ):
+    def calcMoments(self):
         u_coords = source.pxl_coords_list[:,0]/self.major
         v_coords = source.pxl_coords_list[:,1]/self.minor
         
         n_max = source.max_basis_index
         u_basis = self.calcShapeletBasis(u_coords, self.major, n_max)
         v_basis = self.calcShapeletBasis(v_coords, self.minor, n_max)
-        flattened_source = source.flattenExtendedSource()
+        flattened_source = source.flattenArray()
 
         total_moments = int(0.5*(n_max+1)*(n_max+2))
         self.moments = np.zeros((total_moments, 3))
         
         k=0
-        for n1 in range(n_max+1 ):
-            for n2 in range( n_max+1 ):
+        for n1 in range(n_max+1):
+            for n2 in range(n_max+1):
                 if (n1+n2) <= n_max:
                     basis_function=u_basis[n1,:]*v_basis[n2,:]
                     a_moment = (self.calcLeastSquares(basis_function,
@@ -187,10 +193,11 @@ class SourceImage:
         self.posAng = posAng
                 
 #------------------------------------------------------------------------#    
-    def getFitsFile(self, filename):
+    def getFitsFile(self):
+        filename = fits_info['fits_data']
         fitsFile = pyfits.open( filename )
         fitsHeader = fitsFile[0].header
-        source = fitsFile[0].data
+        dataset = fitsFile[0].data
                 
         # RA == y axis/column indices, Dec == x axis/row indices
         self.RA = np.radians(fitsHeader['CRVAL1'])
@@ -203,10 +210,10 @@ class SourceImage:
         self.yextent = fitsHeader['NAXIS1']
         fitsFile.close()
         
-        # Reference the extended source to the pxl (0,0)   
-        self.changeRADecRef( 0, 0 ) 
-        self.checkSourceData( source ) 
-               
+        self.checkSourceData(dataset)
+        self.calcCoordinateList()
+        displayFitsData()
+
 #------------------------------------------------------------------------#
     def checkSourceData(self, source):
         size_of_data = source.shape
@@ -220,21 +227,27 @@ class SourceImage:
              self.extended_source = source[0,0,:,:]
 
 #------------------------------------------------------------------------#
-    def resizeImageOfSource(self, new_xstart, new_ystart, new_xend, new_yend):
+    def resizeImageOfSource(self):
+        new_xstart = int(rect['x0'])
+        new_xend = int(rect['x1'])
+        new_ystart = int(rect['y0'])
+        new_yend = int(rect['y1'])
         self.xextent = new_xend-new_xstart
         self.yextent = new_yend-new_ystart
-        new_source = np.zeros((xextent, yextent))
+        new_source = np.zeros((self.yextent, self.xextent))
 
-        for i in range(self.xextent):
-            for j in range(self.yextent):
-                x = int(i+new_xstart)
-                y = int(j+new_ystart)
-                new_source[i, j] = self.extended_source[x, y]
+        for i in range(self.yextent):
+            for j in range(self.xextent):
+                rows = int(i+new_ystart)
+                cols = int(j+new_xstart)
+                new_source[i, j] = self.extended_source[rows, cols]
          
-        self.changeRADecRef(new_xstart, new_ystart)
+        self.changeRADecRef(new_ystart, new_xstart)
         self.yRApxl = 0
         self.xDecpxl = 0
         self.extended_source = new_source
+        self.calcCoordinateList()
+        displayFitsData()
 
 #------------------------------------------------------------------------#       
     def changeRADecRef( self, new_xpxl, new_ypxl ):
@@ -246,78 +259,81 @@ class SourceImage:
             self.xDecpxl = new_xpxl
 
 #------------------------------------------------------------------------#
-    def calcCoordinateList(self, xcentre_pxl, ycentre_pxl):
-        self.changeRADecRef( xcentre_pxl, ycentre_pxl )
+    def calcCoordinateList(self):
+        xcentre_pxl = m.floor(source.xextent/2)
+        ycentre_pxl = m.floor(source.yextent/2)
+        self.changeRADecRef(xcentre_pxl, ycentre_pxl)
         total_coordinates = self.xextent*self.yextent
         coordinates = np.zeros((total_coordinates, 2))
         xstart = -1*xcentre_pxl
         ystart = -1*ycentre_pxl
         
         k = 0
-        for i in range( self.xextent ):
-            for j in range( self.yextent ):
-                 coordinates[k, 0] = xstart + i
-                 coordinates[k, 1] = ystart + j
+        for i in range(self.xextent):
+            for j in range(self.yextent):
+                 coordinates[k, 0] = (xstart + i)*self.x_angscale
+                 coordinates[k, 1] = (ystart + j)*self.y_angscale
                  k += 1
         self.pxl_coords_list = coordinates
 
 #------------------------------------------------------------------------#
-    def flattenExtendedSource(self):
-
+    def flattenArray(self):
         ext_source = self.extended_source
         flattened_source = ext_source.flatten()
 
         return flattened_source
 
 #------------------------------------------------------------------------#
-    def expandArray( self, flat_array ):
+    def expandArray(self, flat_array):
         twoDarray = np.zeros((self.xextent, self.yextent))
-        twoDarray = np.reshape( flat_array, (self.xextent, self.yextent))
+        twoDarray = np.reshape(flat_array, (self.xextent, self.yextent))
         
         return twoDarray
         
 #------------------------------------------------------------------------#
-    def calcCovarianceFit( self ):
-        sum_of_source = np.sum( np.sum( self.extended_source ))
+    def calcCovarianceFit(self):
+        sum_of_source = np.sum(np.sum(self.extended_source))
 
         weighted_centre = self.calcWeightedCentre(sum_of_source)
-        self.changeRADecRef( weighted_centre[0], weighted_centre[1] )
+        self.pxl_coords_list[:, 0] -= weighted_centre[0]
+        self.pxl_coords_list[:, 1] -= weighted_centre[1]
+        self.changeRADecRef(weighted_centre[0], weighted_centre[1])
         
-        covar_matrix = self.calcFluxMatrix( sum_of_source )
-        (eigenval, eigenvect) = self.calcEigenValueDecomp( covar_matrix )
+        covar_matrix = self.calcFluxMatrix(sum_of_source)
+        (eigenval, eigenvect) = self.calcEigenValueDecomp(covar_matrix)
         
-        self.calcMajorMinor( eigenval )
-        self.posAng = m.atan2(eigenvect[1,1],eigenvect[0,1])
-        self.calcTransformCoordinates( self.posAng )
+        self.calcMajorMinor(eigenval)
+        self.posAng = m.atan2(eigenvect[1,1], eigenvect[0,1])
+        self.calcTransformCoordinates(self.posAng)
 
 #------------------------------------------------------------------------#
     def calcMajorMinor( self, eigenval ):
    
         if eigenval[1] < 0:
             self.major_axis = (0.9*self.xextent*
-                                 m.pow(self.max_basis_index, -0.52))
+                                 m.pow(self.max_basis_index, -0.52))*self.x_angscale
         else:
             self.major_axis = np.sqrt(eigenval[1])
             
         if eigenval[0] < 0:
             self.minor_axis = self.major_axis
         else:
-            self.minor_axis = np.sqrt(eigenval[0])
+            self.minor_axis = np.sqrt(eigenval[0])*self.y_angscale
        
 #------------------------------------------------------------------------#       
     def calcWeightedCentre(self, sum_of_source ):
         k = 0
         xcentre = 0.
         ycentre = 0.
-        for i in range(self.xextent):
-            for j in range(self.yextent):
+        for i in range(self.yextent):
+            for j in range(self.xextent):
                 xcentre += self.extended_source[i,j]*self.pxl_coords_list[k,0]
                 ycentre += self.extended_source[i,j]*self.pxl_coords_list[k,1]
                 k += 1
        
         xcentre = int(xcentre/sum_of_source)
         ycentre = int(ycentre/sum_of_source)
-        weighted_centre = ([xcentre, ycentre])
+        weighted_centre = ([ycentre, xcentre])
         return weighted_centre
         
 #------------------------------------------------------------------------#
@@ -328,8 +344,8 @@ class SourceImage:
        xy_value = 0.
        
        k = 0
-       for i in range( self.xextent ):
-           for j in range( self.yextent ):
+       for i in range( self.yextent ):
+           for j in range( self.xextent ):
                xx_value = xx_value + self.extended_source[i,j]* \
                self.pxl_coords_list[k, 0]*self.pxl_coords_list[k,0]
                yy_value = xx_value + self.extended_source[i,j]* \
@@ -353,13 +369,13 @@ class SourceImage:
         return (eigenval, eigenvect)
        
 #------------------------------------------------------------------------#
-    def calcTransformCoordinates( self, PA ):
+    def calcTransformCoordinates(self, PA):
         transform_matrix=[[m.cos(PA), -m.sin(PA)],[m.sin(PA), m.cos(PA)]]
         coord_list=np.dot(transform_matrix,np.transpose(self. pxl_coords_list))
         self.pxl_coords_list = np.transpose(coord_list)
         
 #------------------------------------------------------------------------#
-    def getImageScale( self, filename, shapelet ):
+    def getImageScale(self, filename, shapelet):
         # Get user parameters to draw new image, otherwise draw from fits
         # file
        
@@ -380,7 +396,7 @@ class SourceImage:
         self.calcTransformCoordinates( shapelet.position_angle )
        
 #------------------------------------------------------------------------#
-    def setShapeletFromImage( self, shapelet ):
+    def setShapeletFromImage(self):
         shapelet.yRA = self.RA
         shapelet.xDec = self.Dec
         shapelet.position_angle = self.posAng
@@ -403,48 +419,70 @@ class SourceImage:
         
         
 ##########################################################################       
-class ShapeletGUI(tk.Frame):
-    def __init__(self, parent):
-        tk.Frame.__init__(self, parent)
-        self.parent = parent
-        self.parent.title('Shapelets')
-        self.fileLoad()
-        self.ImageDisplay()
-        self.SelectArea()
-        self.CalcShapelet()
-        self.SaveResult()
-        self.Quitter()
+def quitter():
+    if messagebox.askyesno('Verify', 'Do you really want to quit?'):
+        plt.close('all')
+        root.destroy()
 
 #------------------------------------------------------------------------#
-    def quitter():
-        global root
-        if askyesno('Verify', 'Do you really want to quit?'):
-            root.destroy()
+def getFilename():
+    fits_info['dirname'] = os.getcwd()
+    fits_info['title'] = 'Select fits file'
+    fits_info['filetypes'] = (('fits files', '*.fits'), ('all files', '*.*'))
+    filename = filedialog.askopenfilename(initialdir = fits_info['dirname'],
+                                          title = fits_info['title'],
+                                          filetypes = fits_info['filetypes'])
+    fits_info['fits_data'] = filename
+    file_label.configure(text=filename)
+    root.update_idletasks()
 
 #------------------------------------------------------------------------#
-    def fileLoad():
-        filename = filedialog.askopenfilename(initialdir = "/",
-                                              title = "Select file",
-                                              filetypes =
-                                              ("fits files","*.fits"))
-        source.getFitsFile(filename)
+def displayFitsData():
+    ax.clear()
+    plt.imshow(source.extended_source, cmap='hot')
+    fig.canvas.draw()
 
 #------------------------------------------------------------------------#
-    def displayFits():
-        fig = Figure(figsize(6,6))
-        fits_image = fig.add_subplot(111)
+def getNumberBasis(event):
+    n = basis_entry.get()
+    source.max_basis_index = int(n)
+    basis_entry.config(fg='black')
+    root.update_idletasks()
 
-        fits_data = source.extended_source
-        plt_max = np.max(fits_data.flatten())
-        plt_min = np.min(fits_data.flatten())
-        contour(fits_data,vmin=plt_min,vmax=plt_max)
-        colorbar()
+#------------------------------------------------------------------------#
+def getSourceName(event):
+    name = source_entry.get()
+    fits_info['sourcename'] = name
+    source_entry.config(fg='black')
+    root.update_idletasks()
 
-        fits_image.set_title('Raw Fits Data')
-        canvas = FigureCanvasTkAgg(fig, master=root)
-        canvas.get_tk_widget().pack()
-        canvas.draw()
-        
+#------------------------------------------------------------------------#
+def xy(event):
+    lastx, lasty = event.xdata, event.ydata
+    rect['x0'] = lastx
+    rect['y0'] = lasty
+
+#------------------------------------------------------------------------#
+def selectROI(event):
+    lastx = rect['x0']
+    lasty = rect['y0']
+    x, y = event.xdata, event.ydata
+    rect['x1'] = x
+    rect['y1'] = y
+    deltax = x - lastx
+    deltay = y - lasty
+    rectangle = plt.Rectangle((lastx,lasty), deltax, deltay, linewidth=3,
+                         edgecolor='y', facecolor='none')
+    ax.add_patch(rectangle)
+    fig.canvas.draw()
+
+#------------------------------------------------------------------------#
+def createShapelet():
+    source.calcCovarianceFit()
+    shapelet.calcMoments(source)
+    source.setShapeletFromImage()
+    shapelet.saveShapelet()
+
 ########################## MAIN PROGRAM ##################################
 
 root = Tk()
@@ -453,56 +491,70 @@ source = SourceImage()
 model = SourceImage()
 residual = SourceImage()
 
-app = ShapeletGUI(root)
+file_label = Label(root, fg='black', justify='left', font='Helvetica 12')
+get_file = Button(root, text='Select', command=getFilename)
+basis_label = Label(root, text='Number of basis:', fg='black', font='Helvetica 12')
+basis_entry = Entry(root, width=3, fg='red')
+basis_entry.bind('<Return>', getNumberBasis)
+source_label = Label(root, text='Source name:', fg='black', font='Helvetica 12')
+source_entry = Entry(root, width=10, fg='red')
+source_entry.bind('<Return>', getSourceName)
+quitter = Button(root, text='Quit', command=quitter)
+load_file = Button(root, text='Load', command=source.getFitsFile)
+resize_im = Button(root, text='Resize', command=source.resizeImageOfSource)
+undo_resize = Button(root, text='Undo', command=displayFitsData)
+process_data = Button(root, text='Go', command=createShapelet)
+
+fig = plt.figure(1)
+ax = fig.add_subplot(111)
+canvas = FigureCanvasTkAgg(fig, master=root)
+canvas.get_tk_widget().grid(column=1, row=3, sticky=(N,W,E,S))
+
+idpress = fig.canvas.mpl_connect('button_press_event', xy)
+idmove = fig.canvas.mpl_connect('button_release_event', selectROI)
+
+get_file.grid(column=0, row=0)
+file_label.grid(column=1, row=0, sticky='W')
+load_file.grid(column=2, row=0)
+basis_label.grid(column=0, row=1, sticky='E')
+basis_entry.grid(column=1, row=1, sticky='W')
+source_label.grid(column=0, row=2, sticky='E')
+source_entry.grid(column=1, row=2, sticky='W')
+quitter.grid(column=2, row=2)
+resize_im.grid(column=2, row=1)
+undo_resize.grid(column=0, row=4, sticky='W')
+process_data.grid(column=1, row=4, sticky=(E,W))
+
 root.mainloop()
 
-source_name = 'FornaxA'
-
-shapelet = Shapelet()
-source = SourceImage()
-model = SourceImage()
-residual = SourceImage()
-
-
-x_centre_pxl = m.floor(source.xextent/2)
-y_centre_pxl = m.floor(source.yextent/2)
-source.calcCoordinateList(x_centre_pxl, y_centre_pxl)
-
-source.calcCovarianceFit()
-
-shapelet.calcMoments(source)
-
-source.setShapeletFromImage(shapelet)
-shapelet.saveShapelet(source_name)
-
 #------------------------------------------------------------------------#
-shapelet.getShapelet(source_name)
-
-model.getImageScale(filename, shapelet)
-model.setImageFromShapelet(shapelet)
-
-residual.__dict__ = source.__dict__.copy()
-flattened_model = shapelet.calcShapeletModel( model )
-flattened_source = source.flattenExtendedSource()
-fudge = np.max(flattened_source)/np.max(flattened_model)
-flattened_model = fudge*flattened_model
-flatResidualArray = flattened_source - flattened_model
-
-plotSource = source.expandArray( flattened_source )
-plotModel = model.expandArray( flattened_model )
-plotResidual = residual.expandArray( flatResidualArray )
-
-plt.figure(0)
-plt_max = np.max(plotSource.flatten())
-plt_min = np.min(plotSource.flatten())
-plt.contour(plotSource,vmin=plt_min,vmax=plt_max)
-plt.colorbar()
-plt.figure(1)
-plt.contour(plotModel,vmin=plt_min,vmax=plt_max)
-plt.colorbar()
-plt.figure(2)
-plt.contour(plotResidual,vmin=plt_min,vmax=plt_max)
-plt.colorbar()
-plt.show()
+# shapelet.getShapelet(source_name)
+#
+# model.getImageScale(filename, shapelet)
+# model.setImageFromShapelet(shapelet)
+#
+# residual.__dict__ = source.__dict__.copy()
+# flattened_model = shapelet.calcShapeletModel( model )
+# flattened_source = source.flattenExtendedSource()
+# fudge = np.max(flattened_source)/np.max(flattened_model)
+# flattened_model = fudge*flattened_model
+# flatResidualArray = flattened_source - flattened_model
+#
+# plotSource = source.expandArray( flattened_source )
+# plotModel = model.expandArray( flattened_model )
+# plotResidual = residual.expandArray( flatResidualArray )
+#
+# plt.figure(0)
+# plt_max = np.max(plotSource.flatten())
+# plt_min = np.min(plotSource.flatten())
+# plt.contour(plotSource,vmin=plt_min,vmax=plt_max)
+# plt.colorbar()
+# plt.figure(1)
+# plt.contour(plotModel,vmin=plt_min,vmax=plt_max)
+# plt.colorbar()
+# plt.figure(2)
+# plt.contour(plotResidual,vmin=plt_min,vmax=plt_max)
+# plt.colorbar()
+# plt.show()
 
 
