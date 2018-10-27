@@ -11,7 +11,7 @@
 # majorminor:   smarter major/minor axis finder but computationally longer
 
 import math as m
-import skimage.measure as kpi
+#import skimage.measure as kpi
 import numpy as np
 #######################################################################
 ## Attempts to optimise beta1, beta2: non-optimal (and dumb - see temp.py for a smarter version) routinue for 2 dependent varibles
@@ -118,7 +118,7 @@ def beta1_beta2(coords,coldata,n,ext_source,ang_res):
 def deconstruct(coords, coldata, beta1, beta2, nmax):
 
     min_percent = 0.0    # zero small coefficients
-    tot_moms = 0.5*(nmax+1)*(nmax+2)
+    tot_moms = int(0.5*(nmax+1)*(nmax+2))
     f_coeffs = np.zeros((tot_moms,3))
     npix = coldata.shape[0]
     Mpiece = np.zeros((npix,1))
@@ -234,7 +234,7 @@ def quick_model(coords,coldata,beta1,beta2,n):
     data = np.zeros((nside, nside))
     model = np.zeros((nside, nside))
     resids = np.zeros((nside, nside))
-    tot_moms = 0.5*(n-1)*(n-2)        
+    tot_moms = int(0.5*(n-1)*(n-2))
     temp_moments = np.zeros((tot_moms,3))
     temp_mod = np.zeros((npix,1))
 
@@ -309,10 +309,10 @@ def minco(coords,coldata,moments,beta1,beta2,mse):
            mse+=z*z
 
         resid_nmse = mse/(np.sum(coldata)**2)
-        print i, resid_nmse
+        print (i, resid_nmse)
 
     tcoeffs = i+1
-    print tcoeffs
+    print (tcoeffs)
     return tcoeffs
 
 #######################################################################
@@ -343,7 +343,7 @@ def major_minor(coords,coldata,n,ext_source,ang_res):
     c2=0                         
     step = 5*ang_res 
     precise = coarse
-    print max_beta, min_beta, guess
+    print (max_beta, min_beta, guess)
 
     l=-1
     # Coarse loop to isolate beta 1 and 2: Minimise beta1, then beta2. If beta1 and beta2 are the same as last minimisation loop, convergence is assumed.

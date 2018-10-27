@@ -47,23 +47,17 @@ class ShapeletGUI(ttk.Frame):
         self.source_entry.bind('<Return>', self.getSourceName)
         self.quitter = Button(self, text='Quit', command=self.quitter, width=12)
         self.load_file = Button(self, text='Load', command=dataset.getFitsFile, width=12)
-        self.resize_im = Button(self, text='Resize', command=im_dims.resizeImageOfSource, width=12)
-        self.undo_resize = Button(self, text='Undo', command=self.undoResize, width=12)
         self.process_data = Button(self, text='Go', command=self.createShapelet)
         self.calc_done = Label(self, justify='center', fg='black', font='Helvetica 12')
         self.ssim_label = Label(self, text='SSIM', justify='center', font='Helvetica 12')
         self.ssim_value = Label(self, justify='left', font='Helvetica 12', bg='white', width=12)
         self.nmse_label = Label(self, text='NMSE', justify='center', font='Helvetica 12')
         self.nmse_value = Label(self, justify='left', font='Helvetica 12', bg='white', width=12)
+        self.resize_im = Button(self, text='Resize', command=im_dims.resizeImageOfSource, width=12)
+        self.undo_resize = Button(self, text='Undo', command=self.displayFitsData(), width=12)
 
-        self.fig = plt.figure(1)
-        self.ax = self.fig.add_subplot(111)
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
-        self.canvas.get_tk_widget().grid(column=1, row=3, sticky=(N, W, E, S))
-
-        self.fig.canvas.mpl_connect('button_press_event', self.xy)
-        self.fig.canvas.mpl_connect('button_release_event', self.selectROI)
-
+        self.resize_im.grid(column=2, row=1, sticky='W')
+        self.undo_resize.grid(column=2, row=2, sticky='W')
         self.get_file.grid(column=0, row=0)
         self.file_label.grid(column=1, row=0, sticky=(E, W))
         self.load_file.grid(column=2, row=0)
@@ -72,8 +66,6 @@ class ShapeletGUI(ttk.Frame):
         self.source_label.grid(column=0, row=2, sticky='E')
         self.source_entry.grid(column=1, row=2, sticky='W')
         self.quitter.grid(column=2, row=6)
-        self.resize_im.grid(column=2, row=1)
-        self.undo_resize.grid(column=2, row=2, sticky='W')
         self.process_data.grid(column=1, row=4, sticky=(E, W))
         self.calc_done.grid(column=0, row=4)
         self.ssim_label.grid(column=0, row=5, sticky='E')
@@ -85,6 +77,7 @@ class ShapeletGUI(ttk.Frame):
         if messagebox.askyesno('Verify', 'Do you really want to quit?'):
             plt.close('all')
             root.destroy()
+            sys.exit()
 
     def getFilename(self):
         dir_name = os.getcwd()
@@ -95,15 +88,40 @@ class ShapeletGUI(ttk.Frame):
                                           filetypes = file_types)
         self.file_label.configure(text=dataset.filename)
         self.update_idletasks()
+        self.displayWindow()
 
     def displayFitsData(self):
-        self.ax.clear()
-        plt.imshow(source.extended_source, cmap='hot')
-        self.fig.canvas.draw()
+        data_display = Toplevel()
+        data_display.wm_title('Fits Data: Select region of interest.')
 
-    def undoResize(self):
-        source.extended_source = dataset.source_data
-        self.displayFitsData()
+        data_display.fig = plt.figure(1)
+        data_display.ax = data_display.fig.add_subplot(111)
+        data_display.canvas = FigureCanvasTkAgg(data_display.fig, master=data_display)
+        data_display.canvas.get_tk_widget().grid(column=1, row=1, sticky=(N, W, E, S))
+        data_display.fig.canvas.mpl_connect('button_press_event', self.xy)
+        data_display.fig.canvas.mpl_connect('button_release_event', self.selectROI())
+
+        data_display.ax.clear()
+        plt.imshow(source.extended_source, cmap='hot')
+        data_display.fig.canvas.draw()
+
+    def xy(self, event):
+        lastx, lasty = event.xdata, event.ydata
+        region.x0 = int(lastx)
+        region.y0 = int(lasty)
+
+    def selectROI(self, event):
+        lastx = region.x0
+        lasty = region.y0
+        x, y = data_display.event.xdata, data_display.event.ydata
+        region.x1 = int(x)
+        region.y1 = int(y)
+        deltax = x - lastx
+        deltay = y - lasty
+        rectangle = plt.Rectangle((lastx, lasty), deltax, deltay, linewidth=3,
+                                      edgecolor='y', facecolor='none')
+        data_display.ax.add_patch(rectangle)
+        data_display.fig.canvas.draw()
 
     def getNumberBasis(self, event):
         n = self.basis_entry.get()
@@ -115,24 +133,6 @@ class ShapeletGUI(ttk.Frame):
         dataset.source_name = self.source_entry.get()
         self.source_entry.config(fg='black')
         self.update_idletasks()
-
-    def xy(self, event):
-        lastx, lasty = event.xdata, event.ydata
-        region.x0 = int(lastx)
-        region.y0 = int(lasty)
-
-    def selectROI(self, event):
-        lastx = region.x0
-        lasty = region.y0
-        x, y = event.xdata, event.ydata
-        region.x1 = int(x)
-        region.y1 = int(y)
-        deltax = x - lastx
-        deltay = y - lasty
-        rectangle = plt.Rectangle((lastx,lasty), deltax, deltay, linewidth=3,
-                                  edgecolor='y', facecolor='none')
-        self.ax.add_patch(rectangle)
-        self.fig.canvas.draw()
 
     def createShapelet(self):
         self.calc_done.configure(text='Thinking', bg='red')
@@ -177,7 +177,6 @@ class ShapeletGUI(ttk.Frame):
         plt.imshow(residual.extended_source, vmin=scale_min, vmax=scale_max, cmap='hot')
 
         data.canvas.draw()
-
 
 class Fits_data:
     def __init__(self, filename=None, RA=0.0, Dec=0.0, xAngScale=1.0, yAngScale=1.0, xDecpxl=0,
@@ -320,9 +319,8 @@ class SourceImage:
         covar_matrix = self.calcFluxMatrix(sum_of_source)
         (eigenval, eigenvect) = self.calcEigenvalueDecomp(covar_matrix)
 
-        self.calcPositionAngle(eigenvect)
+        self.calcMajorMinor(eigenval, eigenvect)
         self.calcTransformCoordinates()
-        beta.calcMajorMinor()
 
     def calcWeightedCentre(self, sum_of_source):
         k = 0
@@ -369,11 +367,19 @@ class SourceImage:
         (eigenval, eigenvect) = np.linalg.eig(eigenmatrix)
         return (eigenval, eigenvect)
 
-    def calcPositionAngle(self, eigenvect):
+    def calcMajorMinor(self, eigenval, eigenvect):
         defaultMajor, defaultMinor = self.calcDefaultValues()
-        shapelet.position_angle = m.atan2(eigenvect[1, 1], eigenvect[0, 1])
-        shapelet.major = defaultMajor
-        shapelet.minor = defaultMinor
+        if eigenval[1] <= 0:
+            shapelet.major = defaultMajor
+            shapelet.position_angle = 0.0
+        else:
+            shapelet.major = np.sqrt(eigenval[1])
+            shapelet.position_angle = m.atan2(eigenvect[1, 1], eigenvect[0, 1])
+
+        if eigenval[0] <= 0:
+            shapelet.minor = defaultMinor
+        else:
+            shapelet.minor = np.sqrt(eigenval[0])
 
     def calcDefaultValues(self):
         x_axis = 0.9 * im_dims.xextent * m.pow(self.max_basis_index, -0.52)
@@ -424,112 +430,9 @@ class SourceImage:
         return source_max, source_min
 
 
-class Beta:
-    def __init__(self, previousMajor=3.0, previousMinor=1.0,
-                 previousMSE=100, currentMSE=50, maxBeta=1000,
-                 minBeta=1.0, stepSize=1.0, bestMajor=0, bestMinor=0):
-        self.previousMajor = previousMajor
-        self.previousMinor = previousMinor
-        self.previousMSE = previousMSE
-        self.currentMSE = currentMSE
-        self.maxBeta = maxBeta
-        self.minBeta = minBeta
-        self.stepSize = stepSize
-        self.bestMajor = bestMajor
-        self.bestMinor = bestMinor
-
-    def calcMajorMinor(self):
-        maxDim = max(im_dims.xextent, im_dims.yextent)
-        minResolution = min(dataset.xAngScale, dataset.yAngScale)
-        self.minBeta = minResolution
-        self.maxBeta = 0.9 * maxDim * m.pow(source.max_basis_index, -0.52) * self.minBeta
-        self.previousMajor = shapelet.major
-        self.previousMinor = shapelet.minor
-        solution = 0
-
-        while solution != 2;
-        self.currentMSE = 5
-        self.previousMSE = 10
-        if self.bestMajor == 0:
-            self.calcMajor()
-
-        self.checkMajorSolution()
-        self.currentMSE = 5
-        self.previousMSE = 10
-        if self.bestMinor == 0:
-            self.calcMinor()
-
-        self.checkMinorSolution()
-        solution = self.bestMajor + self.bestMinor
-
-
-def calcMajor(self):
-    shapelet.major = self.previousMajor + 5 * self.stepSize
-    if shapelet.major > self.maxBeta:
-        shapelet.major = self.maxBeta
-    while beta.currentMSE < beta.previousMSE:
-        self.calcMajorSolution()
-        self.currentMSE = source.normalised_mse
-
-
-def calcMajorSolution(self):
-    self.previousMSE = self.currentMSE
-    shapelet.major = shapelet.major - self.stepSize
-    if shapelet.major < 0.0:
-        shapelet.major = self.maxBeta
-    shapelet.calcMoments()
-    shapelet.calcShapeletModel()
-    shapelet.calcResidual()
-    source.calcNMSE()
-
-
-def checkMajorSolution(self):
-    currentMajor = shapelet.major + self.stepSize
-    if round((currentMajor * 10e4)) == round(self.previousMajor * 10e4):
-        shapelet.major = self.previousMajor
-        self.bestMajor = 1
-    else:
-        self.previousMajor = shapelet.major + self.stepSize
-        shapelet.major = self.previousMajor
-        self.bestMinor = 0
-        self.bestMajor = 0
-
-
-def calcMinor(self):
-    shapelet.minor = self.previousMinor + 5 * self.stepSize
-    if shapelet.minor > self.maxBeta:
-        shapelet.minor = self.maxBeta
-    while self.currentMSE < self.previousMSE:
-        self.findMinorSolution()
-        self.currentMSE = source.normalised_mse
-
-
-def calcMinorSolution(self):
-    self.previousMSE = self.currentMSE
-    shapelet.minor = shapelet.minor - self.stepSize
-    if shapelet.minor < 0.0:
-        shapelet.minor = self.maxBeta
-    shapelet.calcMoments()
-    shapelet.calcShapeletModel()
-    shapelet.calcResidual()
-    source.calcNMSE()
-
-
-def checkMinorSolution(self):
-    currentMinor = shapelet.minor + self.stepSize
-    if round((currentMinor * 10e4)) == round(self.previousMajor * 10e4):
-        shapelet.minor = self.previousMinor
-        beta.bestMinor = 1
-    else:
-        self.previousMinor = shapelet.minor + self.stepSize
-        shapelet.minor = self.previousMinor
-        self.bestMinor = 0
-        self.bestMajor = 0
-
-
 class Shapelet:
     def __init__(self, yRA=0.0, xDec=0.0, moments=[], major=3.0, minor=1.0,
-                position_angle=90 ):
+                position_angle=90):
 
         self.yRA = yRA
         self.xDec = xDec
@@ -548,7 +451,7 @@ class Shapelet:
 
         total_moments = int(0.5*(n_max+1)*(n_max+2))
         self.moments = np.zeros((total_moments, 3))
-
+        
         k=0
         for n1 in range(n_max+1):
             for n2 in range(n_max+1):
@@ -563,27 +466,17 @@ class Shapelet:
     def calcShapeletBasis(self, coords, beta, n_max):
         total_coords = coords.shape[0]
         sq_coords = np.power(coords, 2)
-        gauss = np.exp(-0.5*sq_coords)
+        gauss = np.exp(0.5*sq_coords)
         norm_const1 = m.sqrt(beta*m.sqrt(m.pi))
         shapelet_basis = np.zeros((n_max+1, total_coords))
                        
         for n in range(n_max+1):
             norm_const2 = m.sqrt(m.pow(2, n)*m.factorial(n))
             norm_constant = 1./(norm_const1*norm_const2)
-            hermite_z = self.calcHermite(n, coords)
+            hermite_z = eval_hermite( n, coords )
             shapelet_basis[n, :] = norm_constant*np.multiply(hermite_z, gauss)
             
         return shapelet_basis
-
-    def calcHermite(self, n, coords):
-        hermites = np.loadtxt('hermite_coeffs.txt')
-
-        k=0
-        hermite_poly=0.
-        while (k <= n):
-            hermite_poly = hermite_poly+hermites[n, k]*np.power(coords, (n-k))
-            k += 1
-        return hermite_poly
 
     def calcLeastSquares(self, basis_function):
         flat_source = source.extended_source.flatten()
@@ -597,16 +490,15 @@ class Shapelet:
         file_name = '../Models/' + dataset.source_name + '_moments.txt'
         np.savetxt(file_name, self.moments)
 
-        beta1 = self.major * dataset.xAngScale
-        beta2 = self.minor * dataset.yAngScale
-        shapelet_parameters = ([self.yRA, self.xDec, beta1,
-                                beta2, self.position_angle])
+        shapelet_parameters = ([self.yRA, self.xDec, self.major,
+                                self.minor, self.position_angle])
 
         file_name = '../Models/' + dataset.source_name + '_parameters.txt'
         np.savetxt(file_name, shapelet_parameters)
 
     def calcShapeletModel(self):
-        flat_model = np.zeros((model_dims.xextent * model_dims.yextent, 1))
+        model_extent = model_dims.xextent * model_dims.yextent
+        flat_model = np.zeros((model_extent, 1))
 
         total_moments = self.moments.shape[0]
         n_max = int(-3.0/2 + (m.sqrt(1.0+8.0 * total_moments))/2)
@@ -621,11 +513,9 @@ class Shapelet:
             n2 = int(self.moments[k, 1])
             a_moment = self.moments[k, 2]
             basis_function = np.multiply(u_basis[n1, :], v_basis[n2, :])
-            flat_model = np.add(flat_model, a_moment * basis_function)
+            flat_model = flat_model+a_moment * basis_function
 
-        model.extended_source = flat_model
-
-#        model.extended_source = model_dims.expandArray(flat_model)
+        model.extended_source = model_dims.expandArray(flat_model)
 
     def calcResidual(self):
         for i in range(im_dims.yextent):
@@ -657,7 +547,6 @@ region = Rectangle()
 im_dims = ImageDimensions()
 model_dims = ImageDimensions()
 residual_dims = ImageDimensions()
-beta = Beta()
 
 app = ShapeletGUI(root)
 
