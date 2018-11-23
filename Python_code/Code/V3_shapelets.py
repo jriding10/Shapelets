@@ -2,11 +2,11 @@
 # Shapelets.py
 
 ##########################################################################
-## A remake of Shapelets.py based upon what I now know. Decomposes an   ## 
+## A remake of Shapelets.py based upon what I now know. Decomposes an   ##
 ## image into moments using gauss hermite polynomials as a basis -      ##
 ## shapelets to astronomers -> f(x,y) = A.g(a, b) where f(x, y) is the  ##
-## original function (image), g(a, b) is the new basis (shapelets) and  ## 
-## A is the transform (or moments).                                     ## 
+## original function (image), g(a, b) is the new basis (shapelets) and  ##
+## A is the transform (or moments).                                     ##
 ##                                                                      ##
 ##                                                                      ##
 ##   Version History                                                    ##
@@ -19,175 +19,168 @@
 import os
 import math as m
 import numpy as np
-import matplotlib
 import astropy.io.fits as pyfits
-from scipy.special import eval_hermite
-from tkinter import *
-from tkinter import filedialog
-from tkinter import messagebox
-matplotlib.use("TkAgg")
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from tkinter import ttk
 import matplotlib.pyplot as plt
 
+import sys
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 
-class ShapeletGUI(ttk.Frame):
-    def __init__(self, master):
-        ttk.Frame.__init__(self, master)
-        self.grid()
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
-        self.file_label = Label(self, fg='black', justify='center', font='Helvetica 12')
-        self.file_label.configure(relief='groove', bg='white')
-        self.get_file = Button(self, text='Select', command=self.getFilename, width=12)
-        self.basis_label = Label(self, text='Number of basis:', fg='black', font='Helvetica 12')
-        self.basis_entry = Entry(self, width=3, fg='red')
-        self.basis_entry.bind('<Return>', self.getNumberBasis)
-        self.source_label = Label(self, text='Source name:', fg='black', font='Helvetica 12')
-        self.source_entry = Entry(self, width=10, fg='red')
-        self.source_entry.bind('<Return>', self.getSourceName)
-        self.quitter = Button(self, text='Quit', command=self.quitter, width=12)
-        self.load_file = Button(self, text='Load', command=dataset.getFitsFile, width=12)
-        self.process_data = Button(self, text='Go', command=self.createShapelet)
-        self.calc_done = Label(self, justify='center', fg='black', font='Helvetica 12')
-        self.ssim_label = Label(self, text='SSIM', justify='center', font='Helvetica 12')
-        self.ssim_value = Label(self, justify='left', font='Helvetica 12', bg='white', width=12)
-        self.nmse_label = Label(self, text='NMSE', justify='center', font='Helvetica 12')
-        self.nmse_value = Label(self, justify='left', font='Helvetica 12', bg='white', width=12)
-        self.resize_im = Button(self, text='Resize', command=im_dims.resizeImageOfSource, width=12)
-        self.undo_resize = Button(self, text='Undo', command=self.displayFitsData(), width=12)
+main_window_width = 1000
+main_window_height = 1000
+myDirectory = 'Users/jriding/Documents/Projects/Guider/TestData/'
 
-        self.resize_im.grid(column=2, row=1, sticky='W')
-        self.undo_resize.grid(column=2, row=2, sticky='W')
-        self.get_file.grid(column=0, row=0)
-        self.file_label.grid(column=1, row=0, sticky=(E, W))
-        self.load_file.grid(column=2, row=0)
-        self.basis_label.grid(column=0, row=1, sticky='E')
-        self.basis_entry.grid(column=1, row=1, sticky='W')
-        self.source_label.grid(column=0, row=2, sticky='E')
-        self.source_entry.grid(column=1, row=2, sticky='W')
-        self.quitter.grid(column=2, row=6)
-        self.process_data.grid(column=1, row=4, sticky=(E, W))
-        self.calc_done.grid(column=0, row=4)
-        self.ssim_label.grid(column=0, row=5, sticky='E')
-        self.ssim_value.grid(column=1, row=5, sticky='W')
-        self.nmse_label.grid(column=0, row=6, sticky='E')
-        self.nmse_value.grid(column=1, row=6, sticky='W')
 
-    def quitter(self):
-        if messagebox.askyesno('Verify', 'Do you really want to quit?'):
-            plt.close('all')
-            root.destroy()
-            sys.exit()
+class App(QMainWindow):
 
-    def getFilename(self):
-        dir_name = os.getcwd()
-        window_title = 'Select fits file'
-        file_types = (('fits files', '*.fits'), ('all files', '*.*'))
-        dataset.filename = filedialog.askopenfilename(initialdir = dir_name,
-                                          title = window_title,
-                                          filetypes = file_types)
-        self.file_label.configure(text=dataset.filename)
-        self.update_idletasks()
-        self.displayWindow()
+    def __init__(self):
+        super().__init__()
+        self.title = 'Shapelet-ifer'
+        self.left = 0
+        self.top = 0
+        self.width = main_window_width
+        self.height = main_window_height
+        self.setWindowTitle(self.title)
+        self.setGeometry(self.left, self.top, self.width, self.height)
 
-    def displayFitsData(self):
-        data_display = Toplevel()
-        data_display.wm_title('Fits Data: Select region of interest.')
+        self.main_gui = MainWindow(self)
+        self.setCentralWidget(self.noise_app)
 
-        data_display.fig = plt.figure(1)
-        data_display.ax = data_display.fig.add_subplot(111)
-        data_display.canvas = FigureCanvasTkAgg(data_display.fig, master=data_display)
-        data_display.canvas.get_tk_widget().grid(column=1, row=1, sticky=(N, W, E, S))
-        data_display.fig.canvas.mpl_connect('button_press_event', self.xy)
-        data_display.fig.canvas.mpl_connect('button_release_event', self.selectROI())
+        self.show()
 
-        data_display.ax.clear()
-        plt.imshow(source.extended_source, cmap='hot')
-        data_display.fig.canvas.draw()
+class MainWindow(QWidget):
 
-    def xy(self, event):
-        lastx, lasty = event.xdata, event.ydata
-        region.x0 = int(lastx)
-        region.y0 = int(lasty)
+    def __init__(self, parent):
+        super(QWidget, self).__init__(parent)
+        self.layout = QVBoxLayout()
 
-    def selectROI(self, event):
-        lastx = region.x0
-        lasty = region.y0
-        x, y = data_display.event.xdata, data_display.event.ydata
-        region.x1 = int(x)
-        region.y1 = int(y)
-        deltax = x - lastx
-        deltay = y - lasty
-        rectangle = plt.Rectangle((lastx, lasty), deltax, deltay, linewidth=3,
-                                      edgecolor='y', facecolor='none')
-        data_display.ax.add_patch(rectangle)
-        data_display.fig.canvas.draw()
+        # initialise tab
+        self.tabs = QTabWidget()
+        self.tab1 = QWidget()
+        self.tab2 = QWidget()
+        self.tabs.resize(main_window_width, main_window_height)
 
-    def getNumberBasis(self, event):
-        n = self.basis_entry.get()
-        source.max_basis_index = int(n)
-        self.basis_entry.config(fg='black')
-        self.update_idletasks()
+        # initialise buttons, labels, figures etc
+        self.button_file_select = QPushButton('Select Fits File')
+        self.label_nbasis = QLabel('Order of basis')
+        self.entry_nbasis = QLineEdit(self)
+        self.label_name = QLabel('Name of Object')
+        self.entry_name = QLineEdit(self)
+        self.button_resize = QPushButton('Resize Image')
+        self.button_undo = QPushButton('Undo')
+        self.button_calculate = QPushButton('Calculate')
+        self.canvas = DataDisplay(self.tab1)
+        self.canvas2 = DataDisplay(self.tab2)
+        self.button_save = QPushButton('Save')
+        self.label_ssim = QLabel('SSIM')
+        self.data_ssim = QLabel()
+        self.label_nmse = QLabel('NMSE')
+        self.data_nmse = QLabel()
+        self.button_moments = QPushButton('Moment Map')
 
-    def getSourceName(self, event):
-        dataset.source_name = self.source_entry.get()
-        self.source_entry.config(fg='black')
-        self.update_idletasks()
+        #create tabs
+        self.tabs.addTab(self.tab1, "Data Selection")
+        self.tabs.addTab(self.tab2, "Results")
 
-    def createShapelet(self):
-        self.calc_done.configure(text='Thinking', bg='red')
-        self.update_idletasks()
-        im_dims.calcCoordinateList()
-        source.calcCovarianceFit()
-        shapelet.calcMoments()
-        shapelet.saveShapelet()
+        self.createTab1()
+        self.createTab2()
+        self.show()
 
-        self.setupModelSource()
-        shapelet.calcShapeletModel()
-        shapelet.calcResidual()
-        model.calcNMSE()
-        model.calcSSIM()
-        self.calc_done.configure(text='Done', bg='green')
-        self.update_idletasks()
-        self.displayResults()
+        self.layout.addWidget(self.tabs)
+        self.setLayout(self.layout)
 
-    def setupModelSource(self):
-        model.__dict__ = source.__dict__.copy()
-        model_dims.__dict__= im_dims.__dict__.copy()
-        residual.__dict__ = source.__dict__.copy()
-        residual_dims.__dict__= im_dims.__dict__.copy()
+    def createTab1(self):
+        layout = QVBoxLayout(self)
+        self.file_select.clicked.connect(lambda: self.findFitsFile())
+        layout.addWidget(self.file_select)
+        layout.addWidget(self.canvas)
+        self.canvas.mpl_connect('button_press_event', self.on_press)
+        self.canvas.mpl_connect('button_release_event', self.on_release)
+        hbox1 = QHBoxLayout(self)
+        self.button_undo.clicked.connect(lambda: self.canvas.displayData(fits_data.source_data))
+        self.button_resize.clicked.connect(lambda: coords.selectROI())
+        self.button_calculate.clicked.connect(lambda: radio_source.calcShapelet())
+        hbox1.addWidget(self.button_undo)
+        hbox1.addWidget(self.button_resize)
+        hbox1.addWidget(self.button_calculate)
+        layout.addWidget(hbox1)
+        self.tab1.setLayout(layout)
 
-    def displayResults(self):
-        results = Toplevel()
-        results.wm_title('Shapelet Model')
 
-        scale_max, scale_min = source.getMinMax()
+    @pyqtSlot()
+    def findFitsFile(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        filetypes = 'Fits files (*.fits);;All files (*)'
+        fits_data.filename, _ = QFileDialog.getOpenFileName(self, 'Data', myDirectory, filetypes, options=options)
+        fits_data.getFitsFile()
+        canvas.displayData(fits_data.source_data)
 
-        data = plt.figure(2)
-        canvas = FigureCanvasTkAgg(data, master=results)
-        canvas.get_tk_widget().grid(column=0, row=0, sticky=(N,W,E,S))
+    def on_press(self, event):
+        coords.row0 = int(event.xdata)
+        coords.column0 = int(event.ydata)
 
-        plt.subplot(221)
-        plt.imshow(source.extended_source, vmin=scale_min, vmax=scale_max, cmap='hot')
+    def on_release(self, event):
+        coords.row1 = int(event.xdata)
+        coords.column1 = int(event.ydata)
+        coords.row_extent = abs(coords.row1 - coords.row0)
+        coords.column_extent = abs(coords.column1 - coords.column0)
+        self.canvas.displayRectangle()
 
-        plt.subplot(222)
-        plt.imshow(model.extended_source, vmin=scale_min, vmax=scale_max, cmap='hot')
+    def getUserInputs(self):
+        fits_data.source_name = self.entry_name.text()
+        radio_source.max_basis_index = self.entry_nbasis.text()
 
-        plt.subplot(223)
-        plt.imshow(residual.extended_source, vmin=scale_min, vmax=scale_max, cmap='hot')
+    def updateDisplay(self):
 
-        data.canvas.draw()
 
-class Fits_data:
-    def __init__(self, filename=None, RA=0.0, Dec=0.0, xAngScale=1.0, yAngScale=1.0, xDecpxl=0,
-                 yRApxl=0, xExtent=1, yExtent=1, source_data=[], source_name='temp'):
+class DataDisplay(FigureCanvas):
+
+    def __init__(self, parent=None):
+        fig = Figure(figsize=im_size, dpi=10)
+        self.axes = fig.add_subplot(111)
+        self.displayDefault()
+
+        FigureCanvas.__init__(self, fig)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
+        self.setParent(parent)
+
+    def displayDefault(self):
+        dataToDisplay = np.zeros((int(main_window_width), int(main_window_height/2)))
+        self.axes.imshow(dataToDisplay)
+
+    def displayData(self, dataToDisplay):
+        self.axes.cla()
+        if len(dataToDisplay) != 0:
+            self.axes.imshow(dataToDisplay)
+            self.draw()
+        else:
+            self.displayDefault()
+
+    def displayRectangle(self):
+        delta_row = abs(coords.row0 - coords.row1)
+        delta_column = abs(coords.roi_column0 - coords.roi_column1)
+        rect = plt.Rectangle((coords.row0, coords.column0), delta_row, delta_column,
+                             linewidth=2, edgecolor='y', facecolor='none')
+        self.axes.add_patch(rect)
+        self.draw()
+
+
+class FitsData:
+    def __init__(self, filename=None, RA=None, Dec=None, xAngScale=None, yAngScale=None, rowDecpxl=None,
+                 colRApxl=None, xExtent=None, yExtent=None, source_data=None, source_name='temp'):
         self.filename = filename
         self.RA = RA
         self.Dec = Dec
         self.xAngScale = xAngScale
         self.yAngScale = yAngScale
-        self.xDecpxl = xDecpxl
-        self.yRApxl = yRApxl
+        self.rowDecpxl = rowDecpxl
+        self.colRApxl = colRApxl
         self.xExtent = xExtent
         self.yExtent = yExtent
         self.source_data = source_data
@@ -196,168 +189,113 @@ class Fits_data:
     def getFitsFile(self):
         fitsFile = pyfits.open(self.filename)
         fitsHeader = fitsFile[0].header
-        table_data = fitsFile[0].data
+        fitsData = fitsFile[0].data
 
         # RA == y axis/column indices, Dec == x axis/row indices
         self.RA = np.radians(fitsHeader['CRVAL1'])
         self.Dec = np.radians(fitsHeader['CRVAL2'])
         self.xAngScale = np.radians(fitsHeader['CDELT2'])
         self.yAngScale = np.radians(fitsHeader['CDELT2'])
-        self.xDecpxl = fitsHeader['CRPIX2']
-        self.yRApxl = fitsHeader['CRPIX1']
+        self.colDecpxl = fitsHeader['CRPIX2']
+        self.colRApxl = fitsHeader['CRPIX1']
         self.xExtent = fitsHeader['NAXIS2']
         self.yExtent = fitsHeader['NAXIS1']
         fitsFile.close()
 
-        self.checkSourceData(table_data)
+        self.checkSourceData(fitsData)
         self.copyData()
-        app.displayFitsData()
 
-    def checkSourceData(self, image_table):
-        size_of_data = image_table.shape
+    def checkSourceData(self, fitsdata):
+        size_of_data = fitsdata.shape
         dim_of_data = len(size_of_data)
 
         if dim_of_data == 2:
-            self.source_data = image_table
-        elif (dim_of_data == 4):
-            self.source_data = image_table[0, 0, :, :]
+            self.source_data = fitsdata
+        elif dim_of_data == 4:
+            self.source_data = fitsdata[0, 0, :, :]
         else:
-            sys.exit()
+            print('Fits data is of unknown dimensions: %.0f' % dim_of_data)
+            sys.exit(app.exit())
 
     def copyData(self):
-        im_dims.yRA_pxl = self.yRApxl
-        im_dims.xDec_pxl = self.xDecpxl
-        im_dims.xextent = self.xExtent
-        im_dims.yextent = self.yExtent
-        shapelet.yRA = self.RA
-        shapelet.xDec = self.Dec
-        source.extended_source = self.source_data
+        coords.colRA_pxl = self.colRApxl
+        coords.rowDec_pxl = self.rowDecpxl
+        coords.xextent = self.xExtent
+        coords.yextent = self.yExtent
+        builder.colRA = self.RA
+        builder.rowDec = self.Dec
+        radio_source.extended_source = self.source_data
 
-
-class Rectangle:
-    def __init__(self, x0=0, x1=1, y0=0, y1=1):
-        self.x0 = x0
-        self.x1 = x1
-        self.y0 = y0
-        self.y1 = y1
-
-
-class ImageDimensions:
-    def __init__(self, yRA_pxl=0,  xDec_pxl=0, xextent=100, yextent=100,):
-        self.yRA_pxl = yRA_pxl
-        self.xDec_pxl = xDec_pxl
-        self.xextent = xextent
-        self.yextent = yextent
-
-    def resizeImageOfSource(self):
-        self.xextent = region.x1 - region.x0
-        self.yextent = region.y1 - region.y0
-        new_source = np.zeros((self.yextent, self.xextent))
-
-        for i in range(self.yextent):
-            for j in range(self.xextent):
-                rows = int(i + region.y0)
-                cols = int(j + region.x0)
-                new_source[i, j] = source.extended_source[rows, cols]
-
-        self.changeRADecRef(region.x0, region.y0)
-        self.yRA_pxl = 0
-        self.xDec_pxl = 0
-        source.extended_source = new_source
-        app.displayFitsData()
-
-    def changeRADecRef(self, new_xpxl, new_ypxl):
-        if (self.yRA_pxl != new_ypxl):
-            shapelet.yRA = shapelet.yRA - (self.yRA_pxl - new_ypxl) * dataset.yAngScale
-            self.yRApxl = new_ypxl
-        if (self.xDec_pxl != new_xpxl):
-            shapelet.xDec = shapelet.xDec - (self.xDec_pxl - new_xpxl) * dataset.xAngScale
-            self.xDec_pxl = new_xpxl
-
-    def calcCoordinateList(self):
-        xcentre_pxl = m.floor(self.xextent / 2)
-        ycentre_pxl = m.floor(self.yextent / 2)
-        self.changeRADecRef(xcentre_pxl, ycentre_pxl)
-        total_coordinates = self.xextent * self.yextent
-        coordinates = np.zeros((total_coordinates, 2))
-        xstart = -1 * xcentre_pxl
-        ystart = -1 * ycentre_pxl
-
-        k = 0
-        for i in range(self.xextent):
-            for j in range(self.yextent):
-                coordinates[k, 0] = (xstart + i) * dataset.xAngScale
-                coordinates[k, 1] = (ystart + j) * dataset.yAngScale
-                k += 1
-        source.pxl_coords_list = coordinates
-
-    def expandArray(self, flat_array):
-        twoDarray = np.zeros((self.yextent, self.xextent))
-        twoDarray = np.reshape(flat_array, (self.yextent, self.xextent))
-
-        return twoDarray
-
-
-class SourceImage:
-    def __init__(self, extended_source=None, pxl_coords_list=None,
-                 max_basis_index=5, normalised_mse=0.0, avg_ssim=1.0):
-
+class TheSource:
+    def __init__(self, extended_source=None, max_basis_index=5, normalised_mse=0.0, avg_ssim=1.0):
         self.extended_source = extended_source
-        self.pxl_coords_list = pxl_coords_list
         self.max_basis_index = max_basis_index
         self.normalised_mse = normalised_mse
         self.avg_ssim = avg_ssim
 
-    def calcCovarianceFit(self):
-        sum_of_source = np.sum(np.sum(self.extended_source))
-
-        weighted_centre = self.calcWeightedCentre(sum_of_source)
-        self.pxl_coords_list[:, 0] -= weighted_centre[0]
-        self.pxl_coords_list[:, 1] -= weighted_centre[1]
-        im_dims.changeRADecRef(weighted_centre[0], weighted_centre[1])
-
-        covar_matrix = self.calcFluxMatrix(sum_of_source)
-        (eigenval, eigenvect) = self.calcEigenvalueDecomp(covar_matrix)
-
-        self.calcMajorMinor(eigenval, eigenvect)
+    def calcShapelet(self):
+        row_centre_pxl = m.floor(coords.row_extent/2)
+        col_centre_pxl = m.floor(coords.column_extent/2)
+        coords.changeRADecRef(row_centre_pxl, col_centre_pxl)
+        coords.calcCoordinateList()
+        self.calcCovarianceFit()
         self.calcTransformCoordinates()
+    #        beta.calcMajorMinor()
+        builder.calcMoments()
+        builder.saveShapelet()
+        self.setupModelSource()
+        builder.calcShapeletModel()
+        builder.calcResidual()
+        self.calcSSIM()
+        self.calcNMSE()
+        ex.main_gui.updateDisplay()
 
-    def calcWeightedCentre(self, sum_of_source):
+    def calcCovarianceFit(self):
+        sum_over_source = np.sum(np.sum(self.extended_source))
+
+        weighted_centre = self.calcWeightedCentre(sum_over_source)
+        self.pxl_coords[:, 0] -= weighted_centre[0]
+        self.pxl_coords[:, 1] -= weighted_centre[1]
+        builder.colRA += weighted_centre[1]
+        builder.rowDec -= weighted_centre[0]
+
+        covar_matrix = self.calcFluxMatrix(sum_over_source)
+        (eigenval, eigenvect) = self.calcEigenvalueDecomp(covar_matrix)
+        self.calcPositionAngle(eigenvect)
+
+    def calcWeightedCentre(self, factor):
         k = 0
-        xcentre = 0.0
-        ycentre = 0.0
-        for i in range(im_dims.yextent):
-            for j in range(im_dims.xextent):
-                xcentre += self.extended_source[i, j] * self.pxl_coords_list[k, 0]
-                ycentre += self.extended_source[i, j] * self.pxl_coords_list[k, 1]
+        row_centre = 0.0
+        col_centre = 0.0
+        for i in range(coords.row_extent):
+            for j in range(coords.column_extent):
+                row_centre += self.extended_source[i, j]*coords.pxl_coords[k, 0]
+                col_centre += self.extended_source[i, j]*coords.pxl_coords[k, 1]
                 k += 1
 
-        xcentre = int(xcentre / sum_of_source)
-        ycentre = int(ycentre / sum_of_source)
-        weighted_centre = ([ycentre, xcentre])
+        row_centre = row_centre/factor
+        col_centre = col_centre/factor
+        weighted_centre = ([row_centre, col_centre])
         return weighted_centre
 
-    def calcFluxMatrix(self, sum_of_source):
+    def calcFluxMatrix(self, factor):
         # Matrix terms
-        xx_value = 0.
-        yy_value = 0.
-        xy_value = 0.
+        row_x_row = 0.
+        col_x_col = 0.
+        row_x_col = 0.
 
         k = 0
-        for i in range(im_dims.yextent):
-            for j in range(im_dims.xextent):
-                xx_value = xx_value + self.extended_source[i, j] * \
-                           self.pxl_coords_list[k, 0] * self.pxl_coords_list[k, 0]
-                yy_value = xx_value + self.extended_source[i, j] * \
-                           self.pxl_coords_list[k, 1] * self.pxl_coords_list[k, 1]
-                xy_value = xx_value + self.extended_source[i, j] * \
-                           self.pxl_coords_list[k, 0] * self.pxl_coords_list[k, 1]
+        for i in range(coords.row_extent):
+            for j in range(coords.column_extent):
+                row_x_row = row_x_row + self.extended_source[i, j]*coords.pxl_coords[k, 0]*coords.pxl_coords[k, 0]
+                col_x_col = col_x_col + self.extended_source[i, j]*coords.pxl_coords[k, 1]*coords.pxl_coords[k, 1]
+                row_x_col = row_x_col + self.extended_source[i, j]*coords.pxl_coords[k, 0]*coords.pxl_coords[k, 1]
                 k += 1
 
-        xx_value = xx_value / sum_of_source
-        yy_value = yy_value / sum_of_source
-        xy_value = xy_value / sum_of_source
-        covar_matrix = ([xx_value, xy_value, yy_value])
+        row_x_row = row_x_row/factor
+        col_x_col = col_x_col/factor
+        row_x_col = row_x_col/factor
+        covar_matrix = ([row_x_row, row_x_col, col_x_col])
         return covar_matrix
 
     def calcEigenvalueDecomp(self, covar_matrix):
@@ -367,38 +305,36 @@ class SourceImage:
         (eigenval, eigenvect) = np.linalg.eig(eigenmatrix)
         return (eigenval, eigenvect)
 
-    def calcMajorMinor(self, eigenval, eigenvect):
+    def calcPositionAngle(self, eigenvect):
         defaultMajor, defaultMinor = self.calcDefaultValues()
-        if eigenval[1] <= 0:
-            shapelet.major = defaultMajor
-            shapelet.position_angle = 0.0
-        else:
-            shapelet.major = np.sqrt(eigenval[1])
-            shapelet.position_angle = m.atan2(eigenvect[1, 1], eigenvect[0, 1])
-
-        if eigenval[0] <= 0:
-            shapelet.minor = defaultMinor
-        else:
-            shapelet.minor = np.sqrt(eigenval[0])
+        builder.position_angle = -1*m.atan2(eigenvect[1, 1], eigenvect[0, 1])
+        builder.major = defaultMajor
+        builder.minor = defaultMinor
 
     def calcDefaultValues(self):
-        x_axis = 0.9 * im_dims.xextent * m.pow(self.max_basis_index, -0.52)
-        y_axis = 0.9 * im_dims.yextent * m.pow(self.max_basis_index, -0.52)
+        row_axis = 0.9*coords.row_extent*m.pow(self.max_basis_index, -0.52)
+        col_axis = 0.9*coords.column_extent*m.pow(self.max_basis_index, -0.52)
 
-        if x_axis > y_axis:
-            defaultMajor = x_axis * dataset.xAngScale
-            defaultMinor = y_axis * dataset.yAngScale
+        if row_axis > col_axis:
+            defaultMajor = row_axis*abs(fits_data.xAngScale)
+            defaultMinor = col_axis*abs(fits_data.yAngScale)
+            builder.position_angle = m.pi/2
         else:
-            defaultMajor = y_axis * dataset.yAngScale
-            defaultMinor = x_axis * dataset.xAngScale
+            defaultMajor = col_axis*abs(fits_data.yAngScale)
+            defaultMinor = row_axis*abs(fits_data.xAngScale)
+            builder.position_angle = 0.0
 
         return defaultMajor, defaultMinor
 
     def calcTransformCoordinates(self):
-        PA = shapelet.position_angle
+        PA = builder.position_angle
         transform_matrix = [[m.cos(PA), -m.sin(PA)], [m.sin(PA), m.cos(PA)]]
-        coord_list = np.dot(transform_matrix, np.transpose(self.pxl_coords_list))
-        self.pxl_coords_list = np.transpose(coord_list)
+        coord_list = np.dot(transform_matrix, np.transpose(coords.pxl_coords))
+        coords.pxl_coords = np.transpose(coord_list)
+
+    def setupModelSource(self):
+        model_source.__dict__ = radio_source.__dict__.copy()
+        residual.__dict__ = radio_source.__dict__.copy()
 
     def calcSSIM(self):
         cov_xy = 1
@@ -416,139 +352,310 @@ class SourceImage:
         app.ssim_value.configure(text=ssim_txt)
 
     def calcNMSE(self):
-        sum_source = np.sum(source.extended_source.flatten())
+        sum_source = np.sum(radio_source.extended_source.flatten())
         sqerr = np.square(residual.extended_source.flatten())
 
         self.normalised_mse = np.sum(sqerr) / (sum_source * sum_source)
         nmse_txt = '%3.4f' % self.normalised_mse
         app.nmse_value.configure(text=nmse_txt)
 
-    def getMinMax(self):
-        source_max = np.max(self.extended_source.flatten())
-        source_min = np.min(self.extended_source.flatten())
 
-        return source_max, source_min
+class Coordinates:
+    def __init__(self, colRA_pxl=None,  rowDec_pxl=None, row_extent=None, column_extent=None, pxl_coords=None,
+                 roi_row0=None, roi_column0=None, roi_row1=None, roi_column1=None):
+        self.colRA_pxl = colRA_pxl
+        self.rowDec_pxl = rowDec_pxl
+        self.row_extent = row_extent
+        self.column_extent = column_extent
+        self.pxl_coords = pxl_coords
+        self.roi_row0 = roi_row0
+        self.roi_column0 = roi_column0
+        self.roi_row1 = roi_row1
+        self.roi_column1 = roi_column1
+
+    def changeRADecRef(self, new_row, new_column):
+        new_row = int(new_row)
+        new_column = int(new_column)
+        deltaRowPixel = abs(self.rowDec_pxl - new_row)
+        deltaColumnPixel = abs(self.colRA_pxl - new_column)
+        newRA = builder.rowRA - fits_data.yAngScale*deltaColumnPixel
+        newDec = builder.rowDec - fits_data.xAngScale*deltaRowPixel
+
+        self.colRA_pxl = new_column
+        self.rowDec_pxl = new_row
+        builder.rowRA = newRA
+        builder.colDec = newDec
+
+    def selectROI(self):
+        self.changeRADecRef(coords.roi_row0, coords.roi_column0)
+        new_source = np.zeros((self.row_extent, self.column_extent))
+
+        for i in range(self.row_extent):
+            for j in range(self.column_extent):
+                rows = int(i + self.roi_row0)
+                cols = int(j + self.roi_column0)
+                new_source[i, j] = radio_source.extended_source[rows, cols]
+
+        self.colRA_pxl = 0
+        self.rowDec_pxl = 0
+        radio_source.extended_source = new_source
+        ex.main_gui.getUserInputs()
+        ex.main_gui.canvas.displayFitsData(new_source)
+
+    def calcCoordinateList(self):
+        total_coordinates = self.row_extent * self.column_extent
+        coordinates = np.zeros((total_coordinates, 2))
+        row_start = int(-1 * self.row_extent/2)
+        column_start = int(-1 * self.column_extent/2)
+
+        k = 0
+        for i in range(self.row_extent):
+            for j in range(self.column_extent):
+                coordinates[k, 0] = (row_start + i) * abs(fits_data.xAngScale)
+                coordinates[k, 1] = (column_start + j) * abs(fits_data.yAngScale)
+                k += 1
+        self.pxl_coords = coordinates
+
+    def expandArray(self, flat_array):
+        num_rows = self.row_extent
+        num_cols = self.column_extent
+        new_array = np.zeros((num_rows, num_cols))
+        k = 0
+
+        for i in range(num_rows+1):
+            for j in range(num_cols+1):
+                new_array[i,j] = flat_array[k]
+                k += 1
+
+        return new_array
 
 
-class Shapelet:
-    def __init__(self, yRA=0.0, xDec=0.0, moments=[], major=3.0, minor=1.0,
-                position_angle=90):
-
-        self.yRA = yRA
-        self.xDec = xDec
+class Shapelets:
+    def __init__(self, colRA=None, rowDec=None, moments=None, major=3.0, minor=1.0,
+                position_angle=0.0, ubasis=None, vbasis=None, ucoords=None, vcoords=None):
+        self.colRA = colRA
+        self.rowDec = rowDec
         self.moments = moments
         self.major = major
-        self.minor = minor        
+        self.minor = minor
         self.position_angle = position_angle
+        self.ubasis = ubasis
+        self.vbasis = vbasis
+        self.ucoords = ucoords
+        self.vcoords = vcoords
 
     def calcMoments(self):
-        u_coords = source.pxl_coords_list[:,0]/self.major
-        v_coords = source.pxl_coords_list[:,1]/self.minor
-        
-        n_max = source.max_basis_index
-        u_basis = self.calcShapeletBasis(u_coords, self.major, n_max)
-        v_basis = self.calcShapeletBasis(v_coords, self.minor, n_max)
+        if abs(self.position_angle) < m.pi/np.sqrt(2):
+            beta_u = self.major
+            beta_v = self.minor
+        else:
+            beta_u = self.minor
+            beta_v = self.major
 
-        total_moments = int(0.5*(n_max+1)*(n_max+2))
+        self.ucoords = coords.pxl_coords[:, 0]/beta_u
+        self.vcoords = coords.pxl_coords[:, 1]/beta_v
+
+        n_max = radio_source.max_basis_index
+        self.ubasis = self.calcShapeletBasis(self.ucoords, beta_u)
+        self.vbasis = self.calcShapeletBasis(self.vcoords, beta_v)
+
+        total_moments = int(0.5*(n_max + 1)*(n_max + 2))
         self.moments = np.zeros((total_moments, 3))
-        
-        k=0
-        for n1 in range(n_max+1):
-            for n2 in range(n_max+1):
-                if (n1+n2) <= n_max:
-                    basis_function = np.multiply(u_basis[n1,:], v_basis[n2,:])
+
+        k = 0
+        for n1 in range(n_max + 1):
+            for n2 in range(n_max + 1):
+                if (n1 + n2) <= n_max:
+                    basis_function = np.multiply(self.ubasis[n1, :], self.vbasis[n2, :])
                     a_moment = (self.calcLeastSquares(basis_function))
-                    self.moments[k,0] = n1
-                    self.moments[k,1] = n2 
-                    self.moments[k,2] = a_moment
+                    self.moments[k, 0] = n1
+                    self.moments[k, 1] = n2
+                    self.moments[k, 2] = a_moment
                     k += 1
-                    
-    def calcShapeletBasis(self, coords, beta, n_max):
-        total_coords = coords.shape[0]
-        sq_coords = np.power(coords, 2)
-        gauss = np.exp(0.5*sq_coords)
-        norm_const1 = m.sqrt(beta*m.sqrt(m.pi))
-        shapelet_basis = np.zeros((n_max+1, total_coords))
-                       
-        for n in range(n_max+1):
-            norm_const2 = m.sqrt(m.pow(2, n)*m.factorial(n))
-            norm_constant = 1./(norm_const1*norm_const2)
-            hermite_z = eval_hermite( n, coords )
-            shapelet_basis[n, :] = norm_constant*np.multiply(hermite_z, gauss)
-            
+
+        self.moments = self.moments[(np.argsort(abs(self.moments[:,2])))]
+        self.moments = np.flipud(self.moments)
+
+    def calcShapeletBasis(self, zcoords, zbeta):
+        total_coords = zcoords.shape[0]
+        sq_coords = np.power(zcoords, 2)
+        gauss = np.exp(-0.5 * sq_coords)
+        norm_const1 = m.sqrt(zbeta * m.sqrt(m.pi))
+        shapelet_basis = np.zeros((radio_source.max_basis_index+1, total_coords))
+
+        for n in range(radio_source.max_basis_index + 1):
+            norm_const2 = m.sqrt(m.pow(2, n) * m.factorial(n))
+            norm_constant = 1.0/(norm_const1 * norm_const2)
+            hermite_z = self.calcHermite(n, zcoords)
+            shapelet_basis[n, :] = norm_constant * np.multiply(hermite_z, gauss)
+
         return shapelet_basis
 
+    def calcHermite(self, n, zcoords):
+        hermites = np.loadtxt('hermite_coeffs.txt')
+        k = 0
+        hermite_poly = 0.0
+
+        while k <= n:
+            hermite_poly = hermite_poly+hermites[n, k]*np.power(zcoords, (n-k))
+            k += 1
+        return hermite_poly
+
     def calcLeastSquares(self, basis_function):
-        flat_source = source.extended_source.flatten()
+        flat_source = radio_source.extended_source.flatten()
         transpose_basis = np.transpose(basis_function)
-        demoninator = np.dot(transpose_basis, basis_function)
+        denominator = np.dot(transpose_basis, basis_function)
         numerator = np.dot(transpose_basis, flat_source)
-        a_moment = numerator/demoninator
+        a_moment = numerator/denominator
         return a_moment
 
+    def minimiseMoments(self, value):
+        new_moments = np.zeros((value, 3))
+        for i in range(value+1):
+            new_moments[i, :] = self.moments[i, :]
+        self.moments = new_moments
+
     def saveShapelet(self):
-        file_name = '../Models/' + dataset.source_name + '_moments.txt'
+        file_name = '../Models/' + fits_data.source_name + '_moments.txt'
         np.savetxt(file_name, self.moments)
 
-        shapelet_parameters = ([self.yRA, self.xDec, self.major,
-                                self.minor, self.position_angle])
+        beta1 = np.degrees(self.major)
+        beta2 = np.degrees(self.minor)
+        shapelet_parameters = ([np.degrees(self.colRA), np.degrees(self.rowDec), beta1,
+                                beta2, np.degrees(self.position_angle)])
 
-        file_name = '../Models/' + dataset.source_name + '_parameters.txt'
+        file_name = '../Models/' + fits_data.source_name + '_parameters.txt'
         np.savetxt(file_name, shapelet_parameters)
 
     def calcShapeletModel(self):
-        model_extent = model_dims.xextent * model_dims.yextent
-        flat_model = np.zeros((model_extent, 1))
-
+        flat_model = np.zeros((coords.row_extent*coords.column_extent, 1))
         total_moments = self.moments.shape[0]
-        n_max = int(-3.0/2 + (m.sqrt(1.0+8.0 * total_moments))/2)
 
-        u_coords = model.pxl_coords_list[:,0]/self.major
-        v_coords = model.pxl_coords_list[:,1]/self.minor
-        u_basis = self.calcShapeletBasis(u_coords, self.major, n_max)
-        v_basis = self.calcShapeletBasis(v_coords, self.minor, n_max)
-        
         for k in range(total_moments):
             n1 = int(self.moments[k, 0])
             n2 = int(self.moments[k, 1])
             a_moment = self.moments[k, 2]
-            basis_function = np.multiply(u_basis[n1, :], v_basis[n2, :])
-            flat_model = flat_model+a_moment * basis_function
+            basis_function = np.multiply(self.ubasis[n1, :], self.vbasis[n2, :])
+            flat_model = np.add(flat_model, a_moment*basis_function)
 
-        model.extended_source = model_dims.expandArray(flat_model)
+        model_source.extended_source = flat_model
+        model_source.extended_source = coords.expandArray(flat_model)
 
     def calcResidual(self):
-        for i in range(im_dims.yextent):
-            for j in range(im_dims.xextent):
-                residual.extended_source[i, j] = source.extended_source[i, j] - \
-                                             model.extended_source[i, j]
-
-    def getShapelet(self):
-        file_name = '../Models/' + dataset.source_name + '_moments.txt'
-        self.moments = np.loadtxt(file_name)
-
-        file_name = '../Models/' + dataset.source_name + '_parameters.txt'
-        shapelet_parameters = np.loadtxt(file_name)
-
-        self.yRA = shapelet_parameters[0]
-        self.xDec = shapelet_parameters[1]
-        self.major = shapelet_parameters[2]
-        self.minor = shapelet_parameters[3]
-        self.position_angle = shapelet_parameters[4]
+        residual.extended_source = radio_source.extended_source - model_source.extended_source
 
 
-root = Tk()
-shapelet = Shapelet()
-source = SourceImage()
-model = SourceImage()
-residual = SourceImage()
-dataset = Fits_data()
-region = Rectangle()
-im_dims = ImageDimensions()
-model_dims = ImageDimensions()
-residual_dims = ImageDimensions()
+class Beta:
+    def __init__(self, previousMajor=3.0, previousMinor=1.0,
+                 previousMSE=100, currentMSE=50, maxBeta=1000,
+                 minBeta=1.0, stepSize=1.0, bestMajor=0, bestMinor=0):
+        self.previousMajor = previousMajor
+        self.previousMinor = previousMinor
+        self.previousMSE = previousMSE
+        self.currentMSE = currentMSE
+        self.maxBeta = maxBeta
+        self.minBeta = minBeta
+        self.stepSize = stepSize
+        self.bestMajor = bestMajor
+        self.bestMinor = bestMinor
 
-app = ShapeletGUI(root)
+    def calcMajorMinor(self):
+        maxDim = max(coords.row_extent, coords.column_extent)
+        minResolution = min(fits_data.xAngScale, fits_data.yAngScale)
+        self.minBeta = minResolution
+        self.maxBeta = 0.9*maxDim*m.pow(radio_source.max_basis_index, -0.52)*self.minBeta
+        self.previousMajor = builder.major
+        self.previousMinor = builder.minor
+        solution = 0
 
-root.mainloop()
+        while solution != 2:
+            self.currentMSE = 5
+            self.previousMSE = 10
+            if self.bestMajor == 0:
+                self.calcMajor()
 
+            self.checkMajorSolution()
+            self.currentMSE = 5
+            self.previousMSE = 10
+            if self.bestMinor == 0:
+                self.calcMinor()
+
+            self.checkMinorSolution()
+            solution = self.bestMajor + self.bestMinor
+
+
+    def calcMajor(self):
+        builder.major = self.previousMajor + 5 * self.stepSize
+        if builder.major > self.maxBeta:
+            builder.major = self.maxBeta
+        while beta.currentMSE < beta.previousMSE:
+            self.calcMajorShapelet()
+            self.currentMSE = radio_source.normalised_mse
+
+
+    def calcMajorShapelet(self):
+        self.previousMSE = self.currentMSE
+        builder.major = builder.major - self.stepSize
+        if builder.major < 0.0:
+            builder.major = self.maxBeta
+        builder.calcMoments()
+        builder.calcShapeletModel()
+        builder.calcResidual()
+        radio_source.calcNMSE()
+
+
+    def checkMajorSolution(self):
+        currentMajor = builder.major + self.stepSize
+        if round((currentMajor * 10e4)) == round(self.previousMajor * 10e4):
+            builder.major = self.previousMajor
+            self.bestMajor = 1
+        else:
+            self.previousMajor = builder.major + self.stepSize
+            builder.major = self.previousMajor
+            self.bestMinor = 0
+            self.bestMajor = 0
+
+
+    def calcMinor(self):
+        builder.minor = self.previousMinor + 5 * self.stepSize
+        if builder.minor > self.maxBeta:
+            builder.minor = self.maxBeta
+        while self.currentMSE < self.previousMSE:
+            self.calcMinorShapelet()
+            self.currentMSE = radio_source.normalised_mse
+
+
+    def calcMinorShapelet(self):
+        self.previousMSE = self.currentMSE
+        builder.minor = builder.minor - self.stepSize
+        if builder.minor < 0.0:
+            builder.minor = self.maxBeta
+        builder.calcMoments()
+        builder.calcShapeletModel()
+        builder.calcResidual()
+        radio_source.calcNMSE()
+
+
+    def checkMinorSolution(self):
+        currentMinor = builder.minor + self.stepSize
+        if round((currentMinor * 10e4)) == round(self.previousMajor * 10e4):
+            builder.minor = self.previousMinor
+            beta.bestMinor = 1
+        else:
+            self.previousMinor = builder.minor + self.stepSize
+            builder.minor = self.previousMinor
+            self.bestMinor = 0
+            self.bestMajor = 0
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    fits_data = FitsData()
+    radio_source = TheSource()
+    model_source = TheSource()
+    residual = TheSource()
+    coords = Coordinates()
+    builder = Shapelets()
+    beta = Beta()
+    ex = App()
+    sys.exit(app.exec_())

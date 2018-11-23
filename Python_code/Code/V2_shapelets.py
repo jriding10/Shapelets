@@ -35,13 +35,14 @@ class ShapeletGUI(ttk.Frame):
         ttk.Frame.__init__(self, master)
         self.grid()
 
-        self.file_label = Label(self, fg='black', justify='center', font='Helvetica 12')
-        self.file_label.configure(relief='groove', bg='white')
+        text = Text(master=self.Frame)
+        text.configure(fg='black', justify='center', font='Helvetica 12')
+        self.file_label = Label(self, relief='groove', bg='white')
         self.get_file = Button(self, text='Select', command=self.getFilename, width=12)
-        self.basis_label = Label(self, text='Number of basis:', fg='black', font='Helvetica 12')
+        self.basis_label = Label(self, text='Number of basis:')
         self.basis_entry = Entry(self, width=3, fg='red')
         self.basis_entry.bind('<Return>', self.getNumberBasis)
-        self.source_label = Label(self, text='Source name:', fg='black', font='Helvetica 12')
+        self.source_label = Label(self, text='Source name:')
         self.source_entry = Entry(self, width=10, fg='red')
         self.source_entry.bind('<Return>', self.getSourceName)
         self.coeff_label = Button(self, text='Display Moments', command=self.momentPlot, width=12)
@@ -50,11 +51,11 @@ class ShapeletGUI(ttk.Frame):
         self.resize_im = Button(self, text='Resize', command=im_dims.resizeImageOfSource, width=12)
         self.undo_resize = Button(self, text='Undo', command=self.undoResize, width=12)
         self.process_data = Button(self, text='Go', command=self.createShapelet)
-        self.calc_done = Label(self, justify='center', fg='black', font='Helvetica 12')
-        self.ssim_label = Label(self, text='SSIM', justify='center', font='Helvetica 12')
-        self.ssim_value = Label(self, justify='left', font='Helvetica 12', bg='white', width=12)
-        self.nmse_label = Label(self, text='NMSE', justify='center', font='Helvetica 12')
-        self.nmse_value = Label(self, justify='left', font='Helvetica 12', bg='white', width=12)
+        self.calc_done = Label(self)
+        self.ssim_label = Label(self, text='SSIM')
+        self.ssim_value = Label(self, justify='left', bg='white', width=12)
+        self.nmse_label = Label(self, text='NMSE')
+        self.nmse_value = Label(self, justify='left', bg='white', width=12)
 
         self.fig = plt.figure(1)
         self.ax = self.fig.add_subplot(111)
@@ -376,9 +377,9 @@ class SourceImage:
             for j in range(im_dims.xextent):
                 xx_value = xx_value + self.extended_source[i, j] * \
                            self.pxl_coords_list[k, 0] * self.pxl_coords_list[k, 0]
-                yy_value = xx_value + self.extended_source[i, j] * \
+                yy_value = yy_value + self.extended_source[i, j] * \
                            self.pxl_coords_list[k, 1] * self.pxl_coords_list[k, 1]
-                xy_value = xx_value + self.extended_source[i, j] * \
+                xy_value = xy_value + self.extended_source[i, j] * \
                            self.pxl_coords_list[k, 0] * self.pxl_coords_list[k, 1]
                 k += 1
 
