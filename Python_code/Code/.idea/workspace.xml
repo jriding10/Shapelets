@@ -2,8 +2,14 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="ee29e528-b9f8-4135-b262-d1866229b072" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/V2_shapelets.py" beforeDir="false" afterPath="$PROJECT_DIR$/V2_shapelets.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/basis_generator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shape_functions.py" beforeDir="false" afterPath="$PROJECT_DIR$/Shape_functions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shapelets.py" beforeDir="false" afterPath="$PROJECT_DIR$/Shapelets.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/V3_shapelets.py" beforeDir="false" afterPath="$PROJECT_DIR$/V3_shapelets.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_data.png" beforeDir="false" afterPath="$PROJECT_DIR$/test_data.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_model.png" beforeDir="false" afterPath="$PROJECT_DIR$/test_model.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_resids.png" beforeDir="false" afterPath="$PROJECT_DIR$/test_resids.png" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -17,27 +23,29 @@
         <counts>
           <entry key="project.closed" value="2" />
           <entry key="project.open.time.0" value="2" />
-          <entry key="project.opened" value="2" />
+          <entry key="project.open.time.6" value="1" />
+          <entry key="project.open.time.7" value="1" />
+          <entry key="project.opened" value="4" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
         <counts>
-          <entry key="py" value="14" />
+          <entry key="py" value="15" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.open">
         <counts>
-          <entry key="Python" value="14" />
+          <entry key="Python" value="15" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="py" value="14703" />
+          <entry key="py" value="28564" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="Python" value="14703" />
+          <entry key="Python" value="28564" />
         </counts>
       </usages-collector>
     </session>
@@ -47,8 +55,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/V2_shapelets.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="330">
-              <caret line="467" selection-start-line="467" selection-end-line="467" />
+            <state relative-caret-position="2475">
+              <caret line="172" column="65" selection-start-line="172" selection-start-column="65" selection-end-line="172" selection-end-column="65" />
               <folding>
                 <element signature="e#1090#1099#0" expanded="true" />
                 <element signature="e#8318#10194#0" />
@@ -68,50 +76,106 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/V3_shapelets.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="374">
-              <caret line="137" column="25" selection-start-line="137" selection-start-column="25" selection-end-line="137" selection-end-column="25" />
+            <state relative-caret-position="364">
+              <caret line="360" column="8" selection-start-line="360" selection-start-column="8" selection-end-line="360" selection-end-column="8" />
               <folding>
-                <element signature="e#1090#1099#0" expanded="true" />
-                <element signature="e#3856#4175#0" />
-                <element signature="e#4542#5587#0" />
-                <element signature="e#3203#3513#0" />
-                <element signature="e#3769#3886#0" />
-                <element signature="e#4800#5015#0" />
-                <element signature="e#5835#6045#0" />
-                <element signature="e#5357#7309#0" />
-                <element signature="e#4499#4837#0" />
-                <element signature="e#5284#5946#0" />
-                <element signature="e#5998#6346#0" />
-                <element signature="e#8314#13184#0" />
-                <element signature="e#7201#7427#0" />
-                <element signature="e#8969#9460#0" />
-                <element signature="e#9517#10014#0" />
-                <element signature="e#10063#10876#0" />
-                <element signature="e#10870#11095#0" />
-                <element signature="e#11149#11357#0" />
-                <element signature="e#11400#11866#0" />
-                <element signature="e#12016#12259#0" />
-                <element signature="e#12356#12446#0" />
-                <element signature="e#13454#16066#0" />
-                <element signature="e#16126#20518#0" />
-                <element signature="e#16026#17226#0" />
-                <element signature="e#16928#17492#0" />
-                <element signature="e#17756#17987#0" />
-                <element signature="e#18062#18347#0" />
-                <element signature="e#18502#18655#0" />
-                <element signature="e#18701#19171#0" />
-                <element signature="e#19428#19972#0" />
-                <element signature="e#20432#20518#0" />
-                <element signature="e#20658#24170#0" />
-                <marker date="1542937476550" expanded="true" signature="20643:24160" ph="..." />
+                <element signature="e#1610#2007#0" />
+                <element signature="e#2078#4055#0" />
+                <element signature="e#4091#5292#0" />
+                <element signature="e#5328#5902#0" />
+                <element signature="e#5938#6440#0" />
+                <element signature="e#6494#6835#0" />
+                <element signature="e#6876#6948#0" />
+                <element signature="e#6991#7229#0" />
+                <element signature="e#7262#7376#0" />
+                <element signature="e#7415#8001#0" />
+                <element signature="e#8040#8060#0" />
+                <element signature="e#8100#8222#0" />
+                <element signature="e#8306#8701#0" />
+                <element signature="e#8741#9071#0" />
+                <element signature="e#9108#9366#0" />
+                <element signature="e#9447#9757#0" />
+                <element signature="e#9797#9914#0" />
+                <element signature="e#9966#10133#0" />
+                <element signature="e#10175#10491#0" />
+                <element signature="e#10722#11068#0" />
+                <element signature="e#11105#11771#0" />
+                <element signature="e#11822#12167#0" />
+                <element signature="e#12201#12474#0" />
+                <element signature="e#12602#12765#0" />
+                <element signature="e#13649#13928#0" />
+                <element signature="e#13971#14465#0" />
+                <element signature="e#14517#15013#0" />
+                <element signature="e#15061#15819#0" />
+                <element signature="e#15879#16104#0" />
+                <element signature="e#16158#16477#0" />
+                <element signature="e#16520#17093#0" />
+                <element signature="e#17143#17379#0" />
+                <element signature="e#17421#17530#0" />
+                <element signature="e#17564#18452#0" />
+                <element signature="e#18486#18790#0" />
+                <element signature="e#18827#19075#0" />
+                <element signature="e#19284#19576#0" />
+                <element signature="e#19637#20081#0" />
+                <element signature="e#20116#20639#0" />
+                <element signature="e#20683#21222#0" />
+                <element signature="e#21271#21569#0" />
+                <element signature="e#21790#22126#0" />
+                <element signature="e#22163#23511#0" />
+                <element signature="e#23570#24163#0" />
+                <element signature="e#24212#24446#0" />
+                <element signature="e#24504#25027#0" />
+                <element signature="e#25068#25241#0" />
+                <element signature="e#25279#25757#0" />
+                <element signature="e#25800#26404#0" />
+                <element signature="e#26442#26528#0" />
+                <element signature="e#26565#26679#0" />
+                <element signature="e#26720#27076#0" />
+                <element signature="e#27361#27831#0" />
+                <element signature="e#32377#32646#0" />
+                <element signature="e#33188#33362#0" />
+                <element signature="e#31557#31688#0" />
+                <element signature="e#31723#32532#0" />
+                <element signature="e#32576#32822#0" />
+                <element signature="e#32863#33080#0" />
+                <element signature="e#33124#33349#0" />
+                <element signature="e#33393#33618#0" />
+                <element signature="e#33655#33912#0" />
+                <marker date="1543729604766" expanded="true" signature="33032:33232" ph="..." />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/basis_generator.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="1155">
+              <caret line="78" selection-start-line="78" selection-end-line="78" />
+              <folding>
+                <element signature="e#76#94#0" expanded="true" />
+                <marker date="1543510391859" expanded="true" signature="140:145" ph="..." />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/Shape_functions.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="2880">
+              <caret line="194" selection-start-line="194" selection-end-line="194" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Shapelets.py">
-          <provider selected="true" editor-type-id="text-editor" />
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="120">
+              <caret line="8" column="28" selection-start-line="8" selection-start-column="28" selection-end-line="8" selection-end-column="28" />
+            </state>
+          </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
@@ -120,15 +184,10 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Shape_functions.py">
-          <provider selected="true" editor-type-id="text-editor" />
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/../../../../Projects/Guider/Code/analyseData.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="272">
-              <caret line="102" selection-start-line="102" selection-end-line="102" />
+            <state relative-caret-position="2400">
+              <caret line="169" column="8" selection-start-line="169" selection-start-column="8" selection-end-line="169" selection-end-column="8" />
               <folding>
                 <element signature="e#115#125#0" expanded="true" />
               </folding>
@@ -151,13 +210,16 @@
         <option value="$PROJECT_DIR$/../../../../Projects/Guider/Code/matplot.py" />
         <option value="$PROJECT_DIR$/../../../../Projects/Guider/Code/analyseData.py" />
         <option value="$PROJECT_DIR$/V2_shapelets.py" />
+        <option value="$PROJECT_DIR$/Shapelets.py" />
+        <option value="$PROJECT_DIR$/basis_generator.py" />
+        <option value="$PROJECT_DIR$/Shape_functions.py" />
         <option value="$PROJECT_DIR$/V3_shapelets.py" />
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds">
-    <option name="x" value="1350" />
-    <option name="y" value="-87" />
+  <component name="ProjectFrameBounds" extendedState="1">
+    <option name="x" value="66" />
+    <option name="y" value="23" />
     <option name="width" value="1153" />
     <option name="height" value="777" />
   </component>
@@ -166,20 +228,7 @@
     <navigator proportions="" version="1">
       <foldersAlwaysOnTop value="true" />
     </navigator>
-    <panes>
-      <pane id="ProjectPane">
-        <subPane>
-          <expand>
-            <path>
-              <item name="Code" type="b2602c69:ProjectViewProjectNode" />
-              <item name="Code" type="462c0819:PsiDirectoryNode" />
-            </path>
-          </expand>
-          <select />
-        </subPane>
-      </pane>
-      <pane id="Scope" />
-    </panes>
+    <panes />
   </component>
   <component name="PropertiesComponent">
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
@@ -216,7 +265,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="1350" y="-87" width="1153" height="777" extended-state="0" />
+    <frame x="66" y="23" width="1153" height="777" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" weight="0.2538254" />
@@ -282,29 +331,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Shapelets.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Data_manipulation.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Shape_functions.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../../../../Projects/Guider/Code/analyseData.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="272">
-          <caret line="102" selection-start-line="102" selection-end-line="102" />
-          <folding>
-            <element signature="e#115#125#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/V2_shapelets.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="330">
-          <caret line="467" selection-start-line="467" selection-end-line="467" />
+        <state relative-caret-position="2475">
+          <caret line="172" column="65" selection-start-line="172" selection-start-column="65" selection-end-line="172" selection-end-column="65" />
           <folding>
             <element signature="e#1090#1099#0" expanded="true" />
             <element signature="e#8318#10194#0" />
@@ -320,44 +350,112 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/basis_generator.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1155">
+          <caret line="78" selection-start-line="78" selection-end-line="78" />
+          <folding>
+            <element signature="e#76#94#0" expanded="true" />
+            <marker date="1543510391859" expanded="true" signature="140:145" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Shape_functions.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2880">
+          <caret line="194" selection-start-line="194" selection-end-line="194" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Shapelets.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="120">
+          <caret line="8" column="28" selection-start-line="8" selection-start-column="28" selection-end-line="8" selection-end-column="28" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Data_manipulation.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../../Projects/Guider/Code/analyseData.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2400">
+          <caret line="169" column="8" selection-start-line="169" selection-start-column="8" selection-end-line="169" selection-end-column="8" />
+          <folding>
+            <element signature="e#115#125#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/V3_shapelets.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="374">
-          <caret line="137" column="25" selection-start-line="137" selection-start-column="25" selection-end-line="137" selection-end-column="25" />
+        <state relative-caret-position="364">
+          <caret line="360" column="8" selection-start-line="360" selection-start-column="8" selection-end-line="360" selection-end-column="8" />
           <folding>
-            <element signature="e#1090#1099#0" expanded="true" />
-            <element signature="e#3856#4175#0" />
-            <element signature="e#4542#5587#0" />
-            <element signature="e#3203#3513#0" />
-            <element signature="e#3769#3886#0" />
-            <element signature="e#4800#5015#0" />
-            <element signature="e#5835#6045#0" />
-            <element signature="e#5357#7309#0" />
-            <element signature="e#4499#4837#0" />
-            <element signature="e#5284#5946#0" />
-            <element signature="e#5998#6346#0" />
-            <element signature="e#8314#13184#0" />
-            <element signature="e#7201#7427#0" />
-            <element signature="e#8969#9460#0" />
-            <element signature="e#9517#10014#0" />
-            <element signature="e#10063#10876#0" />
-            <element signature="e#10870#11095#0" />
-            <element signature="e#11149#11357#0" />
-            <element signature="e#11400#11866#0" />
-            <element signature="e#12016#12259#0" />
-            <element signature="e#12356#12446#0" />
-            <element signature="e#13454#16066#0" />
-            <element signature="e#16126#20518#0" />
-            <element signature="e#16026#17226#0" />
-            <element signature="e#16928#17492#0" />
-            <element signature="e#17756#17987#0" />
-            <element signature="e#18062#18347#0" />
-            <element signature="e#18502#18655#0" />
-            <element signature="e#18701#19171#0" />
-            <element signature="e#19428#19972#0" />
-            <element signature="e#20432#20518#0" />
-            <element signature="e#20658#24170#0" />
-            <marker date="1542937476550" expanded="true" signature="20643:24160" ph="..." />
+            <element signature="e#1610#2007#0" />
+            <element signature="e#2078#4055#0" />
+            <element signature="e#4091#5292#0" />
+            <element signature="e#5328#5902#0" />
+            <element signature="e#5938#6440#0" />
+            <element signature="e#6494#6835#0" />
+            <element signature="e#6876#6948#0" />
+            <element signature="e#6991#7229#0" />
+            <element signature="e#7262#7376#0" />
+            <element signature="e#7415#8001#0" />
+            <element signature="e#8040#8060#0" />
+            <element signature="e#8100#8222#0" />
+            <element signature="e#8306#8701#0" />
+            <element signature="e#8741#9071#0" />
+            <element signature="e#9108#9366#0" />
+            <element signature="e#9447#9757#0" />
+            <element signature="e#9797#9914#0" />
+            <element signature="e#9966#10133#0" />
+            <element signature="e#10175#10491#0" />
+            <element signature="e#10722#11068#0" />
+            <element signature="e#11105#11771#0" />
+            <element signature="e#11822#12167#0" />
+            <element signature="e#12201#12474#0" />
+            <element signature="e#12602#12765#0" />
+            <element signature="e#13649#13928#0" />
+            <element signature="e#13971#14465#0" />
+            <element signature="e#14517#15013#0" />
+            <element signature="e#15061#15819#0" />
+            <element signature="e#15879#16104#0" />
+            <element signature="e#16158#16477#0" />
+            <element signature="e#16520#17093#0" />
+            <element signature="e#17143#17379#0" />
+            <element signature="e#17421#17530#0" />
+            <element signature="e#17564#18452#0" />
+            <element signature="e#18486#18790#0" />
+            <element signature="e#18827#19075#0" />
+            <element signature="e#19284#19576#0" />
+            <element signature="e#19637#20081#0" />
+            <element signature="e#20116#20639#0" />
+            <element signature="e#20683#21222#0" />
+            <element signature="e#21271#21569#0" />
+            <element signature="e#21790#22126#0" />
+            <element signature="e#22163#23511#0" />
+            <element signature="e#23570#24163#0" />
+            <element signature="e#24212#24446#0" />
+            <element signature="e#24504#25027#0" />
+            <element signature="e#25068#25241#0" />
+            <element signature="e#25279#25757#0" />
+            <element signature="e#25800#26404#0" />
+            <element signature="e#26442#26528#0" />
+            <element signature="e#26565#26679#0" />
+            <element signature="e#26720#27076#0" />
+            <element signature="e#27361#27831#0" />
+            <element signature="e#32377#32646#0" />
+            <element signature="e#33188#33362#0" />
+            <element signature="e#31557#31688#0" />
+            <element signature="e#31723#32532#0" />
+            <element signature="e#32576#32822#0" />
+            <element signature="e#32863#33080#0" />
+            <element signature="e#33124#33349#0" />
+            <element signature="e#33393#33618#0" />
+            <element signature="e#33655#33912#0" />
+            <marker date="1543729604766" expanded="true" signature="33032:33232" ph="..." />
           </folding>
         </state>
       </provider>

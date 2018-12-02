@@ -192,20 +192,31 @@ def simple_stats(data, model, resids):
     performance = np.zeros((3))
     
     sum_data = np.sum(data)
-    sum_model = np.sum(model)
-    sum_resids = np.sum(resids)
     max_data = np.max(data)
-    max_model = np.max(model)
-    max_resids = np.max(resids)
+    min_data = np.min(data)
     mean_data = np.mean(data)
     mean_model = np.mean(model)
     var_data = np.var(data)
-    var_model = np.var(model)    
+    var_model = np.var(model)
 
-    cov_xy = 1
-    ssim1 = 4*mean_data*mean_model*cov_xy
-    ssim2 = (mean_data**2 + mean_model**2)*(var_data**2 + var_model**2)
-    ssim = ssim1/ssim2
+    source = radio_source.extended_source.flatten()
+    model = model_source.extended_source.flatten()
+
+    source_model = np.multiply(source, model)
+    dynamic_range = max_data - min_data
+    c1 = 0.01 * dynamic_range
+    c2 = 0.03 * dynamic_range
+
+    cov_xy = np.mean(source_model) - mean_model*mean_data
+    luminance = (2 * mean_data * mean_model + c1) / (mean_data ** 2 + mean_model ** 2 + c1)
+    contrast = (2 * np.sqrt(var_data * var_model) + c2) / (var_data + var_model + c2)
+    structure = (cov_xy + c2 / 2) / (np.sqrt(var_data * var_model) + c2 / 2)
+    ssim = luminance * contrast * structure
+
+    # cov_xy = 1
+    # ssim1 = 4*mean_data*mean_model*cov_xy
+    # ssim2 = (mean_data**2 + mean_model**2)*(var_data**2 + var_model**2)
+    # ssim = ssim1/ssim2
     
 #    nrmse = kpi.compare_nrmse(data, model)
 #    psnr = kpi.compare_psnr(data, model)

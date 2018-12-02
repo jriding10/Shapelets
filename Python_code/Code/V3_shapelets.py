@@ -53,6 +53,7 @@ class App(QMainWindow):
 
         self.show()
 
+
 class MainWindow(QWidget):
 
     def __init__(self, parent):
@@ -63,6 +64,7 @@ class MainWindow(QWidget):
         self.tabs = QTabWidget()
         self.tab1 = QWidget()
         self.tab2 = QWidget()
+        self.tab3 = QWidget()
         self.tabs.resize(main_window_width, main_window_height)
 
         # initialise buttons, labels, figures etc
@@ -76,19 +78,32 @@ class MainWindow(QWidget):
         self.button_calculate = QPushButton('Calculate')
         self.canvas = DataDisplay(self.tab1)
         self.canvas2 = DataDisplay(self.tab2)
+        self.canvas3 = DisplayResults(self.tab3)
         self.button_save = QPushButton('Save')
+        self.button_save2 = QPushButton('Save')
         self.label_ssim = QLabel('SSIM')
         self.data_ssim = QLabel()
         self.label_nmse = QLabel('NMSE')
         self.data_nmse = QLabel()
         self.button_moments = QPushButton('Moment Map')
+        self.label_major = QLabel('Major (arcmin)')
+        self.data_major = QLabel()
+        self.label_minor = QLabel('Minor (arcmin)')
+        self.data_minor = QLabel()
+        self.label_pa = QLabel('Position Angle (degrees)')
+        self.data_pa = QLabel()
+        self.label_min_moments = QLabel('How many moments?')
+        self.entry_min_moments = QLineEdit()
+        self.label_default = QLabel('Default is all')
 
         #create tabs
         self.tabs.addTab(self.tab1, "Data Selection")
         self.tabs.addTab(self.tab2, "Numerical Results")
+        self.tabs.addTab(self.tab3, "Results")
 
         self.createTab1()
         self.createTab2()
+        self.createTab3()
         self.show()
 
         self.layout.addWidget(self.tabs)
@@ -113,11 +128,32 @@ class MainWindow(QWidget):
         box1.addWidget(self.entry_name, 1, 1)
         box1.addWidget(self.label_nbasis, 1, 2)
         box1.addWidget(self.entry_nbasis, 1, 3)
+        box1.addWidget(self.label_min_moments, 2, 0)
+        box1.addWidget(self.entry_min_moments, 2, 1)
+        box1.addWidget(self.label_default, 2, 2)
+
         hbox1.setLayout(box1)
         layout.addWidget(hbox1)
         self.tab1.setLayout(layout)
 
     def createTab2(self):
+        layout = QVBoxLayout(self)
+        hbox1 = QWidget()
+        box1 = QHBoxLayout(self)
+        box1.addWidget(self.label_major)
+        box1.addWidget(self.data_major)
+        box1.addWidget(self.label_minor)
+        box1.addWidget(self.data_minor)
+        box1.addWidget(self.label_pa)
+        box1.addWidget(self.data_pa)
+        hbox1.setLayout(box1)
+        layout.addWidget(hbox1)
+        layout.addWidget(self.canvas2)
+        self.button_save.clicked.connect(lambda: builder.saveMoments())
+        layout.addWidget(self.button_save)
+        self.tab2.setLayout(layout)
+
+    def createTab3(self):
         layout = QVBoxLayout(self)
         hbox1 = QWidget()
         box1 = QHBoxLayout(self)
@@ -127,10 +163,10 @@ class MainWindow(QWidget):
         box1.addWidget(self.data_ssim)
         hbox1.setLayout(box1)
         layout.addWidget(hbox1)
-        layout.addWidget(self.canvas2)
-        self.button_save.clicked.connect(lambda: builder.saveMoments())
-        layout.addWidget(self.button_save)
-        self.tab2.setLayout(layout)
+        layout.addWidget(self.canvas3)
+        self.button_save2.clicked.connect(lambda: radio_source.saveResults())
+        layout.addWidget(self.button_save2)
+        self.tab3.setLayout(layout)
 
     @pyqtSlot()
     def findFitsFile(self):
@@ -167,48 +203,44 @@ class MainWindow(QWidget):
         if len(basis) != 0:
             radio_source.max_basis_index = int(basis)
         else:
-            radio_source.max_basis_index = 5
+            radio_source.max_basis_index = 25
+
+        n = radio_source.max_basis_index
+        min_moments = self.entry_min_moments.text()
+        if len(min_moments) != 0:
+            builder.min_moments = int(min_moments)
+        else:
+            builder.min_moments = int(0.5*(n+1)*(n+2))
 
     def updateDisplay(self):
         qApp.processEvents()
 
     def displayResults(self):
-        newWindow = PopUpWindow()
-        newWindow.canvas3.displayData()
-
         moment_array = builder.makeMomentArray()
         self.canvas2.displayData(moment_array)
-
-
-class PopUpWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-
-        self.title = 'Results'
-        self.canvas3 = DisplayResults()
-        self.button_save = QPushButton('Save')
-        self.resultsPopup()
-
-    def resultsPopup(self):
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.canvas3)
-        self.button_save.clicked.connect(radio_source.saveResults)
-        layout.addWidget(self.button_save)
-        self.setLayout(layout)
+        self.canvas3.displayData()
 
 
 class DisplayResults(FigureCanvas):
     def __init__(self, parent=None):
         fig = Figure(figsize=im_size, dpi=10)
-        self.axes1 = fig.add_subplot(211)
-        self.axes2 = fig.add_subplot(212)
-        self.axes3 = fig.add_subplot(221)
-        self.displayData()
+        self.axes1 = fig.add_subplot(221)
+        self.axes2 = fig.add_subplot(222)
+        self.axes3 = fig.add_subplot(223)
+        self.displayDefault()
 
         FigureCanvas.__init__(self, fig)
         FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
         self.setParent(parent)
+
+    def displayDefault(self):
+        data = np.zeros((int(main_window_width/4), int(main_window_height/4)))
+        model = np.zeros((int(main_window_width/4), int(main_window_height/4)))
+        resids = np.zeros((int(main_window_width/4), int(main_window_height/4)))
+        self.axes1.imshow(data)
+        self.axes2.imshow(model)
+        self.axes3.imshow(resids)
 
     def displayData(self):
         data = radio_source.extended_source
@@ -221,7 +253,6 @@ class DisplayResults(FigureCanvas):
 
 
 class DataDisplay(FigureCanvas):
-
     def __init__(self, parent=None):
         fig = Figure(figsize=im_size, dpi=10)
         self.axes = fig.add_subplot(111)
@@ -310,7 +341,7 @@ class FitsData:
 
 
 class TheSource:
-    def __init__(self, extended_source=None, max_basis_index=5, normalised_mse=0.0, avg_ssim=1.0):
+    def __init__(self, extended_source=None, max_basis_index=25, normalised_mse=0.0, avg_ssim=1.0):
         self.extended_source = extended_source
         self.max_basis_index = max_basis_index
         self.normalised_mse = normalised_mse
@@ -318,6 +349,8 @@ class TheSource:
 
     def calcShapelet(self):
         ex.main_gui.getUserInputs()
+        if coords.row1 == None:
+            self.useWholeImage()
         row_centre_pxl = m.floor(coords.row_extent/2)
         col_centre_pxl = m.floor(coords.column_extent/2)
         coords.changeRADecRef(row_centre_pxl, col_centre_pxl)
@@ -325,6 +358,9 @@ class TheSource:
         self.calcCovarianceFit()
         self.calcTransformCoordinates()
         beta.calcMajorMinor()
+        #beta.displayBeta()
+        #builder.major = np.radians(6.45/60.0)
+        #builder.minor = np.radians(4.78/60.0)
         builder.calcMoments()
         builder.saveShapelet()
         self.setupModelSource()
@@ -334,6 +370,15 @@ class TheSource:
         self.calcNMSE()
         ex.main_gui.displayResults()
         ex.main_gui.updateDisplay()
+
+    def useWholeImage(self):
+        coords.row0 = 0
+        coords.column0 = 0
+        coords.row1 = fits_data.yExtent
+        coords.column1 = fits_data.xExtent
+        coords.row_extent = abs(coords.row1 - coords.row0)
+        coords.column_extent = abs(coords.column1 - coords.column0)
+        coords.selectROI()
 
     def calcCovarianceFit(self):
         sum_over_source = np.sum(np.sum(self.extended_source))
@@ -392,9 +437,12 @@ class TheSource:
 
     def calcPositionAngle(self, eigenvect):
         defaultMajor, defaultMinor = self.calcDefaultValues()
-        builder.position_angle = -1*m.atan2(eigenvect[1, 1], eigenvect[0, 1])
+        builder.position_angle = -1*m.atan2(eigenvect[1, 1], eigenvect[0, 1])-m.pi
         builder.major = defaultMajor
         builder.minor = defaultMinor
+
+        pa_text = '%3.5f' % np.degrees(builder.position_angle)
+        ex.main_gui.data_pa.setText(pa_text)
 
     def calcDefaultValues(self):
         row_axis = 0.9*coords.row_extent*m.pow(self.max_basis_index, -0.52)
@@ -409,7 +457,7 @@ class TheSource:
             defaultMinor = row_axis*abs(fits_data.xAngScale)
             builder.position_angle = 0.0
 
-        return defaultMajor, defaultMinor
+        return defaultMajor/2.0, defaultMinor/2.0
 
     def calcTransformCoordinates(self):
         PA = builder.position_angle
@@ -448,25 +496,27 @@ class TheSource:
         sqerr = np.square(residual.extended_source.flatten())
 
         radio_source.normalised_mse = np.sum(sqerr) / (sum_source * sum_source)
-        nmse_txt = '%3.6f' % radio_source.normalised_mse
+        nmse_txt = '%E' % radio_source.normalised_mse
         ex.main_gui.data_nmse.setText(nmse_txt)
 
     def saveResults(self):
-        plt.imshow(radio_source.extended_source)
-        plt.savefig(fits_data.source_name + '_data.png')
-        plt.imshow(model_source.extended_source)
-        plt.savefig(fits_data.source_name + '_model.png')
-        plt.imshow(residual.extended_source)
-        plt.savefig(fits_data.source_name + '_resids.png')
+        plt.imsave(fits_data.source_name + '_data.png', radio_source.extended_source)
+        plt.imsave(fits_data.source_name + '_model.png', model_source.extended_source)
+        plt.imsave(fits_data.source_name + '_resids.png', residual.extended_source)
 
 
 class Coordinates:
-    def __init__(self, colRA_pxl=None,  rowDec_pxl=None, row_extent=None, column_extent=None, pxl_coords=None):
+    def __init__(self, colRA_pxl=None,  rowDec_pxl=None, row_extent=None, column_extent=None, pxl_coords=None,
+                 row0=None, column0=None, row1=None, column1=None):
         self.colRA_pxl = colRA_pxl
         self.rowDec_pxl = rowDec_pxl
         self.row_extent = row_extent
         self.column_extent = column_extent
         self.pxl_coords = pxl_coords
+        self.row0 = row0
+        self.row1 = row1
+        self.column0 = column0
+        self.column1 = column1
 
     def changeRADecRef(self, new_row, new_column):
         new_row = int(new_row)
@@ -525,7 +575,7 @@ class Coordinates:
 
 
 class Shapelets:
-    def __init__(self, colRA=None, rowDec=None, moments=None, major=3.0, minor=1.0,
+    def __init__(self, colRA=None, rowDec=None, moments=None, major=3.0, minor=1.0, min_moments=None,
                 position_angle=0.0, ubasis=None, vbasis=None, ucoords=None, vcoords=None):
         self.colRA = colRA
         self.rowDec = rowDec
@@ -537,6 +587,7 @@ class Shapelets:
         self.vbasis = vbasis
         self.ucoords = ucoords
         self.vcoords = vcoords
+        self.min_moments = min_moments
 
     def calcMoments(self):
         if abs(self.position_angle) < m.pi/np.sqrt(2):
@@ -571,6 +622,8 @@ class Shapelets:
 
         self.moments = self.moments[(np.argsort(abs(self.moments[:,2])))]
         self.moments = np.flipud(self.moments)
+        if self.min_moments != total_moments:
+            self.minimiseMoments()
 
     def calcShapeletBasis(self, zcoords, zbeta):
         total_coords = zcoords.shape[0]
@@ -612,9 +665,9 @@ class Shapelets:
         a_moment = numerator/denominator
         return a_moment
 
-    def minimiseMoments(self, value):
-        new_moments = np.zeros((value, 3))
-        for i in range(value+1):
+    def minimiseMoments(self):
+        new_moments = np.zeros((self.min_moments, 3))
+        for i in range(self.min_moments):
             new_moments[i, :] = self.moments[i, :]
         self.moments = new_moments
 
@@ -650,8 +703,7 @@ class Shapelets:
 
     def saveMoments(self):
         moment_array = self.makeMomentArray()
-        plt_moments = plt.imshow(moment_array)
-        plt_moments.savefig(fits_data.source_name + '_moment_plot.jpg')
+        plt.imsave(fits_data.source_name + '_moment_plot.jpg', moment_array)
 
     def makeMomentArray(self):
         max_moments = int(max(max(self.moments[:,0]), max(self.moments[:,1])) + 1)
@@ -665,11 +717,13 @@ class Shapelets:
 
 
 class Beta:
-    def __init__(self, previousMajor=3.0, previousMinor=1.0,
-                 previousMSE=100, currentMSE=50, maxBeta=1000,
+    def __init__(self, previousMajor=3.0, previousMinor=1.0, currentMajor=None, currentMinor=None,
+                 previousMSE=100, currentMSE=50, maxBeta=1000, nmax=5, smoothedSource=None,
                  minBeta=1.0, stepSize=1.0, bestMajor=0, bestMinor=0):
         self.previousMajor = previousMajor
         self.previousMinor = previousMinor
+        self.currentMajor = currentMajor
+        self.currentMinor = currentMinor
         self.previousMSE = previousMSE
         self.currentMSE = currentMSE
         self.maxBeta = maxBeta
@@ -677,102 +731,198 @@ class Beta:
         self.stepSize = stepSize
         self.bestMajor = bestMajor
         self.bestMinor = bestMinor
+        self.nmax = nmax
+        self.smoothedSource = smoothedSource
 
     def calcMajorMinor(self):
         minResolution = min(fits_data.xAngScale, fits_data.yAngScale)
         self.minBeta = minResolution
-        self.maxBeta = max(coords.column_extent, coords.row_extent)*fits_data.xAngScale
-        real_nmax = radio_source.max_basis_index
-        radio_source.max_basis_index = 3
+        self.maxBeta = max(coords.column_extent, coords.row_extent)*minResolution
         self.previousMajor = builder.major
         self.previousMinor = builder.minor
+        self.currentMinor = builder.minor
+        self.bestMajor = 0
+        self.bestMinor = 0
+        self.stepSize = minResolution
         solution = 0
-        max_iters = 1000
+        max_iters = 100
         current_iter = 0
 
-        while (solution != 2 & current_iter != max_iters):
-            self.currentMSE = 5
-            self.previousMSE = 10
+        self.reduceResolution()
+
+        while (solution < 2 and current_iter < max_iters):
+            print('Current iteration: %.0f' % current_iter)
+            self.currentMSE = 100
+            self.previousMSE = 200
+            iters = 0
+            print('********************************************')
             if self.bestMajor == 0:
-                self.calcMajor()
+                self.currentMajor = self.previousMajor + 5 * self.stepSize
+                self.currentMajor = self.checkBounds(self.currentMajor)
+                while self.currentMSE <= self.previousMSE and iters < 20:
+                    print('Current major iter: %.0f' % iters)
+                    self.previousMSE = self.currentMSE
+                    model = self.calcModel()
+                    self.calcNMSE(model)
+                    print('Previous NMSE: %E' % self.previousMSE)
+                    print('Current major NMSE: %E' % self.currentMSE)
+                    self.currentMajor = self.currentMajor - self.stepSize
+                    self.currentMajor = self.checkBounds(self.currentMajor)
+                    iters += 1
 
+            self.currentMajor = self.currentMajor + self.stepSize
+            print('Current major = %.5f' % self.currentMajor)
+            print('Previous major = %.5f' % self.previousMajor)
             self.checkMajorSolution()
-            self.currentMSE = 5
-            self.previousMSE = 10
+            print('Converged? %.0f' % self.bestMajor)
+            print('********************************************')
+            self.currentMSE = 100
+            self.previousMSE = 200
+            iters  = 0
             if self.bestMinor == 0:
-                self.calcMinor()
+                self.currentMinor = self.previousMinor + 5 * self.stepSize
+                self.currentMinor = self.checkBounds(self.currentMinor)
+                while self.currentMSE <= self.previousMSE and iters < 20:
+                    print('Current minor iters: %.0f' % iters)
+                    self.previousMSE = self.currentMSE
+                    model = self.calcModel()
+                    print('Previous NMSE: %E' % self.previousMSE)
+                    print('Current minor NMSE: %E' % self.currentMSE)
+                    self.calcNMSE(model)
+                    self.currentMinor = self.currentMinor - self.stepSize
+                    self.currentMinor = self.checkBounds(self.currentMinor)
+                    iters += 1
 
+            self.currentMinor = self.currentMinor + self.stepSize
+            print('Current minor = %.7f' % self.currentMinor)
+            print('Previous minor = %.7f' % self.previousMinor)
             self.checkMinorSolution()
+            print('Converged? %.0f' % self.bestMinor)
             solution = self.bestMajor + self.bestMinor
+            print('********************************************')
+            print('Solution: %.0f' % solution)
             current_iter += 1
 
-        radio_source.max_basis_index = real_nmax
         if current_iter == max_iters:
             print('Reached maximum number of iterations!')
             radio_source.calcDefaultValues()
+        elif current_iter == 0:
+            print('We failed to go through the loop. \n')
+            radio_source.calcDefaultValues()
+        else:
+            builder.major = self.currentMajor
+            builder.minor = self.currentMinor
+            print('We went through the loop %f times' % current_iter)
+        self.displayBeta()
 
-    def calcMajor(self):
-        builder.major = self.previousMajor + 5 * self.stepSize
-        if builder.major > self.maxBeta:
-            builder.major = self.maxBeta
-        while beta.currentMSE < beta.previousMSE:
-            self.calcMajorShapelet()
-            self.currentMSE = radio_source.normalised_mse
+    def reduceResolution(self):
+        source = self.checkDims(radio_source.extended_source)
+        max_dim = max(coords.row_extent, coords.column_extent)
+        temp_source = np.zeros((int(coords.row_extent/2), int(coords.column_extent/2)))
+        while max_dim > 101:
+            l = 0
+            m = 0
+            rows = int(source.shape[0]/2)
+            cols = int(source.shape[1]/2)
+            for i in range(rows):
+                for j in range(cols):
+                    temp_source[i, j] = (source[l, m] + source[l+1, m] + source[l, m+1] +
+                                        source[l+1, m+1])/4
+                    l += 2
+                    m += 2
 
+            new_row_extent = temp_source.shape[0]
+            new_column_extent = temp_source.shape[1]
+            max_dim = max(new_row_extent, new_column_extent)
+            if max_dim < 100:
+                self.smoothedSource = temp_source
+            else:
+                source = self.checkDims(temp_source)
+                temp_source = np.zeros((int(source.shape[0]/2), int(source.shape[1]/2)))
 
-    def calcMajorShapelet(self):
-        self.previousMSE = self.currentMSE
-        builder.major = builder.major - self.stepSize
-        if builder.major < 0.0:
-            builder.major = self.maxBeta
-        builder.calcMoments()
-        builder.calcShapeletModel()
-        builder.calcResidual()
-        radio_source.calcNMSE()
+    def removeOdds(self, temp_source):
+        rows = 2*int(temp_source.shape[0]/2)
+        cols = 2*int(temp_source.shape[1]/2)
+        source = np.zeros((rows, cols))
 
+        for i in range(rows):
+            for j in range(cols):
+                source[i,j] = temp_source[i,j]
+        return source
+
+    def checkDims(self, temp_source):
+        if temp_source.shape[0] % 2 == 1 or temp_source.shape[1] % 2 == 1:
+            source = self.removeOdds(temp_source)
+        else:
+            source = temp_source
+        return source
+
+    def checkBounds(self, beta):
+        if beta > self.maxBeta:
+            beta = self.maxBeta
+        if beta <= 0.0:
+            beta = self.maxBeta
+        return beta
+
+    def calcModel(self):
+        beta1, beta2 = self.checkPositionAngle()
+        ucoords = coords.pxl_coords[:, 0] / beta1
+        vcoords = coords.pxl_coords[:, 1] / beta2
+        ubasis = builder.calcShapeletBasis(ucoords, beta1)
+        vbasis = builder.calcShapeletBasis(vcoords, beta2)
+        length_basis = ubasis.shape[1]
+        basis_function = np.zeros((length_basis, 1))
+        simple_model = np.zeros((length_basis, 1))
+
+        for n1 in range(self.nmax + 1):
+            for n2 in range(self.nmax + 1):
+                if (n1 + n2) <= self.nmax:
+                    basis_function[:, 0] = np.multiply(ubasis[n1, :], vbasis[n2, :])
+                    a_moment = (builder.calcLeastSquares(basis_function))
+                    simple_model[:, 0] = simple_model[:, 0] + a_moment*basis_function[:, 0]
+
+        return simple_model
+
+    def checkPositionAngle(self):
+        if abs(builder.position_angle) < m.pi / np.sqrt(2):
+            beta1 = self.currentMajor
+            beta2 = self.currentMinor
+        else:
+            beta1 = self.currentMinor
+            beta2 = self.currentMajor
+
+        return beta1, beta2
+
+    def calcNMSE(self, model):
+        source = radio_source.extended_source.flatten()
+        resids = source - model
+        sum_source = np.sum(source)
+        sqerr = np.square(resids)
+        self.currentMSE = np.sum(sqerr) / (sum_source * sum_source)
 
     def checkMajorSolution(self):
-        currentMajor = builder.major + self.stepSize
-        if round((currentMajor * 10e4)) == round(self.previousMajor * 10e4):
-            builder.major = self.previousMajor
+        if round(self.currentMajor*10e7) == round(self.previousMajor*10e7):
             self.bestMajor = 1
         else:
-            self.previousMajor = builder.major + self.stepSize
-            builder.major = self.previousMajor
+            self.previousMajor = self.currentMajor
             self.bestMinor = 0
             self.bestMajor = 0
-
-
-    def calcMinor(self):
-        builder.minor = self.previousMinor + 5 * self.stepSize
-        if builder.minor > self.maxBeta:
-            builder.minor = self.maxBeta
-        while self.currentMSE < self.previousMSE:
-            self.calcMinorShapelet()
-            self.currentMSE = radio_source.normalised_mse
-
-
-    def calcMinorShapelet(self):
-        self.previousMSE = self.currentMSE
-        builder.minor = builder.minor - self.stepSize
-        if builder.minor < 0.0:
-            builder.minor = self.maxBeta
-        builder.calcMoments()
-        builder.calcShapeletModel()
-        builder.calcResidual()
-        radio_source.calcNMSE()
-
 
     def checkMinorSolution(self):
-        currentMinor = builder.minor + self.stepSize
-        if round((currentMinor * 10e4)) == round(self.previousMajor * 10e4):
-            builder.minor = self.previousMinor
-            beta.bestMinor = 1
+        if round(self.currentMinor*10e7) == round(self.previousMinor*10e7):
+            self.bestMinor = 1
         else:
-            self.previousMinor = builder.minor + self.stepSize
-            builder.minor = self.previousMinor
+            self.previousMinor = self.currentMinor
             self.bestMinor = 0
             self.bestMajor = 0
+
+    def displayBeta(self):
+        major = np.degrees(builder.major)*60
+        minor = np.degrees(builder.minor)*60
+        major_text = '%3.4f' % major
+        minor_text = '%3.4f' % minor
+        ex.main_gui.data_major.setText(major_text)
+        ex.main_gui.data_minor.setText(minor_text)
 
 
 if __name__ == '__main__':
