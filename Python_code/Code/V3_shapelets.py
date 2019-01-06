@@ -357,10 +357,10 @@ class TheSource:
         coords.calcCoordinateList()
         self.calcCovarianceFit()
         self.calcTransformCoordinates()
-        beta.calcMajorMinor()
-        #beta.displayBeta()
-        #builder.major = np.radians(6.45/60.0)
-        #builder.minor = np.radians(4.78/60.0)
+        beta.calcAllBetas()
+        beta.displayBeta()
+        #builder.major = np.radians(1.083/60.0)
+        #builder.minor = np.radians(0.667/60.0)
         builder.calcMoments()
         builder.saveShapelet()
         self.setupModelSource()
@@ -719,7 +719,7 @@ class Shapelets:
 class Beta:
     def __init__(self, previousMajor=3.0, previousMinor=1.0, currentMajor=None, currentMinor=None,
                  previousMSE=100, currentMSE=50, maxBeta=1000, nmax=5, smoothedSource=None,
-                 minBeta=1.0, stepSize=1.0, bestMajor=0, bestMinor=0):
+                 minBeta=1.0, stepSize=1.0, bestMajor=0, bestMinor=0, checkBeta=None):
         self.previousMajor = previousMajor
         self.previousMinor = previousMinor
         self.currentMajor = currentMajor
@@ -733,6 +733,7 @@ class Beta:
         self.bestMinor = bestMinor
         self.nmax = nmax
         self.smoothedSource = smoothedSource
+        self.checkBeta = checkBeta
 
     def calcMajorMinor(self):
         minResolution = min(fits_data.xAngScale, fits_data.yAngScale)
@@ -815,21 +816,53 @@ class Beta:
             print('We went through the loop %f times' % current_iter)
         self.displayBeta()
 
+    def calcAllBetas(self):
+        minResolution = min(fits_data.xAngScale, fits_data.yAngScale)
+        self.minBeta = minResolution
+        maxDim = max(coords.row_extent, coords.column_extent)
+        self.maxBeta = 0.9*maxDim*m.pow(self.nmax, -0.52)*minResolution
+        number_of_steps = int(self.maxBeta/self.minBeta)
+        self.checkBeta = np.zeros((number_of_steps**2, 3))
+        self.stepSize = minResolution
+        self.previousMajor = self.minBeta - self.stepSize
+        self.previousMinor = self.minBeta - self.stepSize
+        self.currentMinor = self.minBeta
+        self.reduceResolution()
+        k = 0
+
+        for i in range(number_of_steps):
+            self.currentMajor = self.previousMajor + self.stepSize
+            self.previousMajor = self.currentMajor
+            self.previousMinor = self.minBeta - self.stepSize
+            print("Gone through %.0f iterations of %.0f" % (i, number_of_steps))
+            for j in range(number_of_steps):
+                self.currentMinor = self.previousMinor + self.stepSize
+                self.previousMinor = self.currentMinor
+                model = self.calcModel()
+                self.calcSSIM(model)
+                self.checkBeta[k, 0] = self.currentMajor
+                self.checkBeta[k, 1] = self.currentMinor
+                self.checkBeta[k, 2] = self.currentMSE
+                k += 1
+
+        np.savetxt("beta_check3.txt", self.checkBeta)
+        print("Finished calculating betas")
+
     def reduceResolution(self):
-        source = self.checkDims(radio_source.extended_source)
+        source = radio_source.extended_source
         max_dim = max(coords.row_extent, coords.column_extent)
-        temp_source = np.zeros((int(coords.row_extent/2), int(coords.column_extent/2)))
+        temp_source = np.zeros((int(round(coords.row_extent/2)), int(round(coords.column_extent/2))))
         while max_dim > 101:
-            l = 0
-            m = 0
-            rows = int(source.shape[0]/2)
-            cols = int(source.shape[1]/2)
-            for i in range(rows):
-                for j in range(cols):
+            l = -2
+            rows = int(round(source.shape[0]/2))
+            cols = int(round(source.shape[1]/2))
+            for i in range(rows-1):
+                l += 2
+                m = -2
+                for j in range(cols-1):
+                    m += 2
                     temp_source[i, j] = (source[l, m] + source[l+1, m] + source[l, m+1] +
                                         source[l+1, m+1])/4
-                    l += 2
-                    m += 2
 
             new_row_extent = temp_source.shape[0]
             new_column_extent = temp_source.shape[1]
@@ -837,25 +870,9 @@ class Beta:
             if max_dim < 100:
                 self.smoothedSource = temp_source
             else:
-                source = self.checkDims(temp_source)
-                temp_source = np.zeros((int(source.shape[0]/2), int(source.shape[1]/2)))
-
-    def removeOdds(self, temp_source):
-        rows = 2*int(temp_source.shape[0]/2)
-        cols = 2*int(temp_source.shape[1]/2)
-        source = np.zeros((rows, cols))
-
-        for i in range(rows):
-            for j in range(cols):
-                source[i,j] = temp_source[i,j]
-        return source
-
-    def checkDims(self, temp_source):
-        if temp_source.shape[0] % 2 == 1 or temp_source.shape[1] % 2 == 1:
-            source = self.removeOdds(temp_source)
-        else:
-            source = temp_source
-        return source
+                source = temp_source
+                temp_source = np.zeros((int(round(source.shape[0]/2)), int(round(source.shape[1]/2))))
+        del temp_source
 
     def checkBounds(self, beta):
         if beta > self.maxBeta:
@@ -894,11 +911,35 @@ class Beta:
         return beta1, beta2
 
     def calcNMSE(self, model):
-        source = radio_source.extended_source.flatten()
+        if self.smoothedSource != None:
+            source = self.smoothedSource.flatten()
+        else:
+            source = radio_source.extended_source.flatten()
         resids = source - model
         sum_source = np.sum(source)
         sqerr = np.square(resids)
         self.currentMSE = np.sum(sqerr) / (sum_source * sum_source)
+
+    def calcSSIM(self, model):
+        if self.smoothedSource != []:
+            source = self.smoothedSource.flatten()
+        else:
+            source = radio_source.extended_source.flatten()
+
+        source_model = np.multiply(source, model)
+        source_mean = np.mean(source)
+        source_var = np.var(source)
+        model_mean = np.mean(model)
+        model_var = np.var(model)
+        dynamic_range = max(source) - min(source)
+        c1 = 0.01*dynamic_range
+        c2 = 0.03*dynamic_range
+
+        cov_xy = np.mean(source_model) - source_mean*model_mean
+        luminance = (2*source_mean*model_mean + c1) / (source_mean**2 + model_mean**2 + c1)
+        contrast = (2*np.sqrt(source_var*model_var) + c2) / (source_var + model_var + c2)
+        structure = (cov_xy + c2/2) / (np.sqrt(source_var*model_var) + c2/2)
+        self.currentMSE = luminance*contrast*structure
 
     def checkMajorSolution(self):
         if round(self.currentMajor*10e7) == round(self.previousMajor*10e7):
