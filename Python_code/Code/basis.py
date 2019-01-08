@@ -90,28 +90,15 @@ class Basis:
         return new_array
 
     def plotBasis(self):
-        tdzz = self.twoDArray(0, 0)
-        pltMax = np.max(np.max(tdzz))
+        basisTD = self.twoDArray(0, 0)
+        pltMax = 0.57
         pltMin = -1*pltMax
 
-        tdzo = self.twoDArray(0, 1)
-        tdoz = self.twoDArray(1, 0)
-        tdoo = self.twoDArray(1, 1)
-        tdtz = self.twoDArray(2, 0)
-        tdto = self.twoDArray(2, 1)
-        tdtt = self.twoDArray(2, 2)
-
         plt.figure(0)
-        plt.subplot(321)
-        plt.imshow(tdzz, vmin=pltMin, vmax=pltMax, cmap='cool')
-        plt.subplot(322)
-        plt.imshow(tdzo, vmin=pltMin, vmax=pltMax, cmap='cool')
-        plt.subplot(323)
-        plt.imshow(tdoz, vmin=pltMin, vmax=pltMax, cmap='cool')
-        plt.subplot(324)
-        plt.imshow(tdoo, vmin=pltMin, vmax=pltMax, cmap='cool')
-        plt.subplot(325)
-        plt.imshow(tdtz, vmin=pltMin, vmax=pltMax, cmap='cool')
-        plt.subplot(326)
-        plt.imshow(tdto, vmin=pltMin, vmax=pltMax, cmap='cool')
+        plt.imshow(basisTD, vmin=pltMin, vmax=pltMax, cmap='hot')
+        plt.colorbar()
+        plt.axis('off')
         plt.show()
+
+beta = Basis()
+beta.calcBasis()
