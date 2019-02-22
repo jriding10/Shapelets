@@ -13,16 +13,19 @@ class TheSource:
     def sumOfSource(self):
         self.sum_source = np.sum(np.sum(self.extended_source))
 
-    def calcWeightedCentre(self, xextent, yextent, coords):
+    def calcWeightedCentre(self, coords):
         k = 0
         row_centre = 0.0
         col_centre = 0.0
+        xextent = self.extended_source.shape[0]
+        yextent = self.extended_source.shape[1]
         for i in range(xextent):
             for j in range(yextent):
                 row_centre += self.extended_source[i, j]*coords[k, 0]
                 col_centre += self.extended_source[i, j]*coords[k, 1]
                 k += 1
 
+        self.sumOfSource()
         row_centre = row_centre/self.sum_source
         col_centre = col_centre/self.sum_source
         weighted_centre = ([row_centre, col_centre])

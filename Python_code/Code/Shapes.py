@@ -88,10 +88,10 @@ class Shapelets:
         return a_moment
 
     def minimiseMoments(self, numToInc):
-        self.min_moments = np.zeros((numToInc, 3))
+        min_moments = np.zeros((numToInc, 3))
         for i in range(numToInc):
-            self.min_moments[i, :] = self.moments[i, :]
-        return self.min_moments
+            min_moments[i, :] = self.moments[i, :]
+        return min_moments
 
     def calcShapeletModel(self, coords, moments):
         num_coords = coords.shape[0]
