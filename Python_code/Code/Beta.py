@@ -1,8 +1,5 @@
 import numpy as np
 import math as m
-import Shapes
-
-shapelet = Shapes.Shapelets()
 
 class Beta:
     def __init__(self, beta1=None, beta2=None, currentMSE=50, currentSSIM=0, maxBeta=1000, nmax=5,
@@ -39,11 +36,20 @@ class Beta:
                 self.calcSSIM(model)
                 self.checkBeta[k, 0] = self.beta1
                 self.checkBeta[k, 1] = self.beta2
-                self.checkBeta[k, 2] = self.currentMSE
+                self.checkBeta[k, 2] = self.currentSSIM
                 k += 1
 
         np.savetxt("beta_check3.txt", self.checkBeta)
         print("Finished calculating betas")
+        major, minor = self.findBestBetas()
+        return major, minor
+
+    def findBestBetas(self):
+        bestBeta = max(self.checkBeta[:,2])
+        k = 0
+        while self.checkBeta[k, 2] < bestBeta:
+            k += 1
+        return self.checkBeta[k, 0], self.checkBeta[k, 1]
 
     def reduceResolution(self, source, extent):
         max_dim = max(extent[0], extent[1])

@@ -124,3 +124,17 @@ class Shapelets:
             y = int(self.moments[i,1])
             moment_array[x,y] = self.moments[i,2]
         return moment_array
+
+    def saveShapelet(self, name):
+        file_name = '../Models/' + name + '_moments.txt'
+        np.savetxt(file_name, self.moments)
+
+        beta1 = np.degrees(self.major)
+        beta2 = np.degrees(self.minor)
+        shapelet_parameters = ([np.degrees(self.colRA), np.degrees(self.rowDec), beta1,
+                                beta2, np.degrees(self.position_angle)])
+
+        file_name = '../Models/' + fits_data.source_name + '_parameters.txt'
+        np.savetxt(file_name, shapelet_parameters)
+
+

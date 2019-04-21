@@ -6,12 +6,9 @@
 ## idea is to examine the results in terms of noise performance.        ##
 ##########################################################################
 
-import os
-import math as m
 import numpy as np
 import matplotlib.pyplot as plt
 
-import sys
 import Fits
 import Source
 import Coords
@@ -19,7 +16,7 @@ import Shapes
 
 
 # Pick a source: PKS0410, 3C353, ForA
-which_source = 'PKS0410'
+which_source = 'ForA'
 plot_zoomed_image = False
 plot_image = False
 plot_noise = False
@@ -35,8 +32,12 @@ plot_nmse_elliptical = False
 plot_circular_beta = False
 set_circular_beta = False
 plot_circular_nmax = False
-plot_circular_moments_ssim = True
+plot_circular_moments_ssim = False
 use_x_moments = False
+do_gaussian_fit = False
+do_gaussian_series_fit = True
+do_egauss_fit = False
+do_egauss_series_fit = False
 
 class Common:
     def __init__(self):
@@ -78,7 +79,7 @@ def moment_map(moments):
     plt.show()
 
 def zoomed_image():
-    data.position = coords.changeRADecRef(data.x1, data.position, data.pxl_position, data.angScale)
+    data.position = coords.changeRADecRef(data.pxl_position, data.x1, data.position, data.angScale)
     data.pxl_position = data.x1
     dataset = coords.resizeData(data.dataset, data.x1, data.x2)
     data.coord_list = coords.calcCoordinateList(data.angScale)
@@ -91,6 +92,12 @@ def offset_coords(dataset):
     weighted_centre = source.calcWeightedCentre(data.coord_list)
     data.coord_list[:, 0] -= weighted_centre[0]
     data.coord_list[:, 1] -= weighted_centre[1]
+
+def offset_coords_maxflux(dataset):
+    source.extended_source = dataset
+    centre = source.calcMaxFluxCentre(data.coord_list)
+    data.coord_list[:, 0] -= centre[0]
+    data.coord_list[:, 1] -= centre[1]
 
 def straight_image():
     data.x1 = [0, 0]
@@ -133,8 +140,14 @@ def histogram_2plot(dataset, model, nbins):
 
 def default_fit(dataset):
     extent = find_extent()
+    source.extended_source = dataset
     major, minor, pa = source.calcDefaultValues(data.angScale, extent)
+    covar_matrix = source.calcFluxMatrix(extent, data.coord_list)
+    eigenval, eigenvect = source.calcEigenvalueDecomp(covar_matrix)
+    pa = source.calcPositionAngle(eigenvect)
     shapes.position_angle = pa
+    coords = source.calcTransformCoordinates(shapes.position_angle, data.coord_list)
+    data.coord_list = coords
     model, resids = beta_fit(dataset, major, minor)
     return model, resids
 
@@ -163,7 +176,6 @@ def create_shapelet_fit(dataset):
 def add_moments(dataset):
     flat_data = dataset.flatten()
     total_moments = shapes.moments.shape[0]
-    print(total_moments)
     measure = np.zeros((total_moments, 1))
     for i in range(total_moments):
         measure[i], model = only_use_moments(flat_data, i+1)
@@ -181,7 +193,10 @@ def changing_beta(dataset):
     side_length = max(dataset.shape[0], dataset.shape[1])
     flat_data = dataset.flatten()
     min_beta = min(fits.yAngScale, fits.xAngScale)
-    max_beta = 0.9*side_length*min_beta*np.power(data.nmax, -0.52)
+    if data.nmax != 0:
+        max_beta = 0.9*side_length*min_beta*np.power(data.nmax, -0.52)
+    else:
+        max_beta = 0.5*side_length*min_beta
     num_points = int((max_beta-min_beta)/min_beta)
     measures = np.zeros((num_points, 3))
     beta = min_beta
@@ -189,7 +204,7 @@ def changing_beta(dataset):
         major = beta + i*min_beta
         model, resids = circular_fit(dataset, major)
         flat_model = model.flatten()
-        measures[i, 0] = np.degrees(shapes.major-min_beta)*60*60
+        measures[i, 0] = np.degrees(shapes.major-min_beta)*60
         measures[i, 1] = source.calcNMSE(flat_data, flat_model)
         measures[i, 2] = source.calcSSIM(flat_data, flat_model)
     return measures
@@ -217,13 +232,97 @@ def change_nmax(dataset, major, minor):
         measures[i, 1] = source.calcSSIM(flat_data, flat_model)
     return measures
 
-def calc_gaussian(major, minor, pa, coords, x0, y0):
-    sigma_1 = 0.5*major*np.power(2*log(2), -0.5)
-    sigma_2 = 0.5*minor*np.power(2*log(2), -0.5)
-    num_coords = coords.shape[0]
-    gaussian = np.zeros((num_coords, 1))
+def calc_gaussian(dataset):
+    data.nmax = 0
+    measures = changing_beta(dataset)
+    maxSSIM = max(measures[:, 2])
+    k = 0
+    while measures[k, 2] < (maxSSIM-0.00001):
+        k += 1
 
+    return measures[k, :]
 
+def calc_egauss(dataset):
+    min_beta = data.angScale[0]
+    model, resids = default_fit(dataset)
+    coords = source.calcTransformCoordinates(shapes.position_angle, data.coord_list)
+    data.coord_list = coords
+    flat_data = dataset.flatten()
+    steps = 20
+    data.nmax = 0
+    k = 0
+    measures = np.zeros((steps*steps, 3))
+    for i in range(steps):
+        beta1 = min_beta*(i+1)
+        for j in range(steps):
+            beta2 = min_beta*(j+1)
+            model, resids = beta_fit(dataset, beta1, beta2)
+            flat_model = model.flatten()
+            measures[k, 0] = beta1
+            measures[k, 1] = beta2
+            measures[k, 2] = source.calcSSIM(flat_data, flat_model)
+            k += 1
+
+    k = 0
+    best = np.max(measures[:,2])
+    while measures[k, 2] < best:
+        k += 1
+    return measures[k, :]
+
+def gaussian_series(dataset):
+    first_gauss = calc_gaussian(dataset)
+    flat_data = dataset.flatten()
+    good_fit = first_gauss[2]
+    beta = np.radians(first_gauss[0]/60)
+    model, resids = beta_fit(dataset, beta, beta)
+    flat_model = model.flatten()
+    good_fit = source.calcSSIM(flat_data, flat_model)
+    k = 0
+
+    while good_fit < 0.995:
+        k+=1
+        print("Gaussian number %f." % k)
+        offset_coords_maxflux(resids)
+        opt_fit = calc_gaussian(resids)
+        beta = np.radians(opt_fit[0]/60)
+        if beta <= np.radians(1.0/3600):
+            good_fit = 1.0
+        else:
+            model_piece, resids = beta_fit(resids, beta, beta)
+            model += model_piece
+            data.debug2 = model
+            flat_model = model.flatten()
+            good_fit = source.calcSSIM(flat_data, flat_model)
+    flat_resids = flat_data - flat_model
+    nmse = source.calcNMSE(flat_data, flat_resids)
+    resids = coords.expandArray(flat_resids)
+    print("There are %f gaussians  with a nmse of %f and a ssim of %f." % (k, nmse, good_fit))
+    return model, resids
+
+def egauss_series(dataset):
+    first_egauss = calc_egauss(dataset)
+    flat_data = dataset.flatten()
+    good_fit = first_egauss[2]
+    model, resids = beta_fit(dataset, first_egauss[0], first_egauss[1])
+    flat_model = model.flatten()
+    k = 0
+
+    while good_fit < 0.995:
+        k+=1
+        offset_coords_maxflux(resids)
+        opt_fit = calc_egauss(resids)
+        if min(opt_fit[0], opt_fit[1]) <= np.radians(1.0/3600):
+            good_fit = 1.0
+        else:
+            model_piece, resids = beta_fit(resids, opt_fit[0], opt_fit[1])
+            model += model_piece
+            flat_model = model.flatten()
+            good_fit = source.calcSSIM(flat_data, flat_model)
+    flat_resids = flat_data - flat_model
+    nmse = source.calcNMSE(flat_data, flat_resids)
+    resids = coords.expandArray(flat_resids)
+    print("There are %f gaussians with a nmse of %f and a ssim of %f." % (k, nmse, good_fit))
+    return model, resids
 
 if __name__ == '__main__':
     data = Common()
@@ -397,6 +496,41 @@ if __name__ == '__main__':
         ssim, model = only_use_moments(flat_data, 60)
         pretty_plot(model)
 
+    if do_gaussian_fit:
+        dataset = zoomed_image()
+        offset_coords(dataset)
+        opt_fit = calc_gaussian(dataset)
+        beta = np.radians(opt_fit[0]/60)
+        model, resids = beta_fit(dataset, beta, beta)
+        pretty_plot(dataset)
+        pretty_plot(model)
+        pretty_plot(resids)
+
+    if do_gaussian_series_fit:
+        dataset = zoomed_image()
+        offset_coords(dataset)
+        model, resids = gaussian_series(dataset)
+        pretty_plot(dataset)
+        pretty_plot(model)
+        pretty_plot(resids)
+
+    if do_egauss_fit:
+        dataset = zoomed_image()
+        offset_coords(dataset)
+        major, minor, ssim = calc_egauss(dataset)
+        model, resids = beta_fit(dataset, major, minor)
+        print('The ssim is %f' % ssim)
+        pretty_plot(dataset)
+        pretty_plot(model)
+        pretty_plot(resids)
+
+    if do_egauss_series_fit:
+        dataset = zoomed_image()
+        offset_coords(dataset)
+        model, resids = egauss_series(dataset)
+        pretty_plot(dataset)
+        pretty_plot(model)
+        pretty_plot(resids)
 
 
 

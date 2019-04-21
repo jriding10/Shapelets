@@ -27,7 +27,7 @@ class FitsData:
         self.RA = np.radians(fitsHeader['CRVAL1'])
         self.Dec = np.radians(fitsHeader['CRVAL2'])
         self.xAngScale = np.radians(fitsHeader['CDELT2'])
-        self.yAngScale = np.radians(fitsHeader['CDELT2'])
+        self.yAngScale = np.radians(fitsHeader['CDELT1'])
         self.rowDecpxl = fitsHeader['CRPIX2']
         self.colRApxl = fitsHeader['CRPIX1']
         self.xExtent = fitsHeader['NAXIS2']

@@ -2,13 +2,26 @@ import numpy as np
 import math as m
 
 
-class TheSource:
+class ImageData:
     def __init__(self, extended_source=None, max_basis_index=25, normalised_mse=0.0, avg_ssim=1.0, sum_source=0.0):
         self.extended_source = extended_source
         self.max_basis_index = max_basis_index
         self.normalised_mse = normalised_mse
         self.avg_ssim = avg_ssim
         self.sum_source = sum_source
+
+    def calcCovarianceFit(self):
+        sum_over_source = np.sum(np.sum(self.extended_source))
+
+        weighted_centre = self.calcWeightedCentre(sum_over_source)
+        coords.pxl_coords[:, 0] -= weighted_centre[0]
+        coords.pxl_coords[:, 1] -= weighted_centre[1]
+        builder.colRA += weighted_centre[1]
+        builder.rowDec -= weighted_centre[0]
+
+        covar_matrix = self.calcFluxMatrix(sum_over_source)
+        (eigenval, eigenvect) = self.calcEigenvalueDecomp(covar_matrix)
+        self.calcPositionAngle(eigenvect)
 
     def sumOfSource(self):
         self.sum_source = np.sum(np.sum(self.extended_source))
@@ -30,6 +43,19 @@ class TheSource:
         col_centre = col_centre/self.sum_source
         weighted_centre = ([row_centre, col_centre])
         return weighted_centre
+
+    def calcMaxFluxCentre(self, coords):
+        k = 0
+        xextent = self.extended_source.shape[0]
+        yextent = self.extended_source.shape[1]
+        maxFlux = np.max(np.max(self.extended_source))
+        for i in range(xextent):
+            for j in range(yextent):
+                k += 1
+                if self.extended_source[i, j] == maxFlux:
+                    found_it = k
+        centre = coords[found_it, :]
+        return centre
 
     def calcFluxMatrix(self, xextent, yextent, coords):
         # Matrix terms
@@ -59,9 +85,8 @@ class TheSource:
         return (eigenval, eigenvect)
 
     def calcPositionAngle(self, eigenvect):
-        defaultMajor, defaultMinor, pa = self.calcDefaultValues()
         position_angle = -1*m.atan2(eigenvect[1, 1], eigenvect[0, 1])-m.pi
-        return defaultMajor, defaultMinor, position_angle
+        return position_angle
 
     def calcDefaultValues(self, angScale, extent):
         row_axis = 0.9*extent[0]*m.pow(self.max_basis_index, -0.52)
@@ -70,19 +95,11 @@ class TheSource:
         if row_axis > col_axis:
             defaultMajor = row_axis*abs(angScale[0])
             defaultMinor = col_axis*abs(angScale[1])
-            position_angle = m.pi/2
         else:
             defaultMajor = col_axis*abs(angScale[1])
             defaultMinor = row_axis*abs(angScale[0])
-            position_angle = 0.0
 
-        return defaultMajor/2.0, defaultMinor/2.0, position_angle
-
-    def calcTransformCoordinates(self, pa, coords):
-        transform_matrix = [[m.cos(pa), -m.sin(pa)], [m.sin(pa), m.cos(pa)]]
-        coord_list = np.dot(transform_matrix, np.transpose(coords))
-        coords = np.transpose(coord_list)
-        return coords
+        return defaultMajor/2.0, defaultMinor/2.0
 
     def calcSSIM(self, source, model):
         source_model = np.multiply(source, model)
